@@ -1,10 +1,11 @@
 import os
-from datetime import time
+import time
 import random
 
 import pyautogui
 
-from RunescapeBots.Custom_Modules import realmouse
+from RunescapeBots.Custom_Modules.realmouse import move_mouse_to
+
 # from RunescapeBots.GeMercher import examine_money, runescape_instance
 
 
@@ -29,8 +30,8 @@ from RunescapeBots.Custom_Modules import realmouse
 
 # Types a word at a random speed for each letter
 def random_typer(word):
-    for i in word:
-        pyautogui.typewrite(i, interval=random.random() / 4)
+    for letter in word:
+        pyautogui.typewrite(letter.lower(), interval=random.random() / 4)
 
 
 # module to return a random point from a box
@@ -38,27 +39,22 @@ def random_typer(word):
 def random_point(top_left, bottom_right):
     x = random.randint(top_left[0], bottom_right[0])
     y = random.randint(top_left[1], bottom_right[1])
-    point = (x, y)
-    return (point)
+
+    return x, y
 
 
 # Locates an image on screen and moves the mouse to a random point within that image
-def move_mouse_to_image_within_region(image, region):  # region takes in an object
-    image_loc = pyautogui.locateOnScreen(image, region=(
-        region.top_left_corner[0], region.top_left_corner[1], region.bottom_right_corner[0] - region.top_left_corner[0],
-        region.bottom_right_corner[1] - region.top_left_corner[1]))
+def move_mouse_to_image_within_region(image, region=None):  # region takes in an object
+    image_loc = pyautogui.locateOnScreen(image, region=region) # region is here
 
     # Is this redundant with line above? Or is this waiting for pyautogui to locate on screen?
     while (image_loc == None):
-        image_loc = pyautogui.locateOnScreen(image, region=(
-            region.top_left_corner[0], region.top_left_corner[1],
-            region.bottom_right_corner[0] - region.top_left_corner[0],
-            region.bottom_right_corner[1] - region.top_left_corner[1]))
+        image_loc = pyautogui.locateOnScreen(image, region=region)
 
     point_to_click = random_point((image_loc[0], image_loc[1]),
                                   (image_loc[0] + image_loc[2], image_loc[1] + image_loc[3]))
 
-    realmouse.move_mouse_to(point_to_click[0], point_to_click[1])
+    move_mouse_to(point_to_click[0], point_to_click[1])
 
 
 # pass in an image and a search region
@@ -67,40 +63,38 @@ def move_mouse_to_box(image_of_box, top_left_corner, bottom_right_corner):
     box_to_click = pyautogui.locateOnScreen(image_of_box)
     random_x = random.randint(0, box_to_click[2])
     random_y = random.randint(0, box_to_click[3])
-    realmouse.move_mouse_to(box_to_click[0] + random_x, box_to_click[1] + random_y)
+    move_mouse_to(box_to_click[0] + random_x, box_to_click[1] + random_y)
 
 
-# Waits for pyautogui to find an image onscreen
+# Waits for pyautogui to find an image onscreen, moves the mouse if the image can't be found
 def wait_for(image, runescape_window):
     # adding a possible failsafe in here
-    # time_entered = time.time() original line
-    time_entered = time()
+    time_entered = time.time()
+    # time_entered = time()
     # could add a failsafe in here incase we misclick or something, this
     # should be something to come back to
     failsafe_count = 0
     while (True):
-        found = pyautogui.locateOnScreen(
-            image, region=(
-                runescape_window.top_left_corner[0], runescape_window.top_left_corner[1],
-                runescape_window.bottom_right_corner[0] - runescape_window.top_left_corner[0],
-                runescape_window.bottom_right_corner[1] - runescape_window.top_left_corner[1]))
+        found = pyautogui.locateOnScreen(image)
         if found != None:
             break
+
         elif failsafe_count > 10:
             print("We can't seem to fix the problem so the script is now aborting")
             quit()
-        # elif time.time() - time_entered > 5: oringinal line
-        elif time() - time_entered > 5:
+        # If the image can't be found it moves the mouse in case the mouse is over the image.
+        elif time.time() - time_entered > 5:
+        # elif time() - time_entered > 5:
             failsafe_count += 1
             print('We appear to be stuck so attempting to move the mouse and see if this fixes it')
             # print('For debug:')
             # print(runescape_window.bottom_right_corner[0], runescape_window.top_left_corner[0])
             # print(runescape_window.bottom_right_corner[1], runescape_window.top_left_corner[1])
-            realmouse.move_mouse_to(
+            move_mouse_to(
                 random.randint(runescape_window.top_left_corner[0], runescape_window.bottom_right_corner[0]),
                 random.randint(runescape_window.top_left_corner[1], runescape_window.bottom_right_corner[1]))
             # pyautogui.click()
-            time_entered = time()
+            time_entered = time.time()
 
 
 # This probably belongs here in a more generalized form
@@ -131,3 +125,5 @@ def members_status_check(top_left_corner, bottom_right_corner):
 #     pass  # this will move and resize the detected windows.
 # # Initially this will just pass since we don't know how to do this, but
 # # further down the road we can add to this and implement it
+
+
