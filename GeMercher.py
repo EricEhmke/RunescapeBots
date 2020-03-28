@@ -14,11 +14,11 @@ import matplotlib.pyplot as plt
 # import pygame
 
 # below are custom modules
-from RunescapeBots.Custom_Modules.realmouse import move_mouse_to
-from RunescapeBots.Custom_Modules import pointfrombox
-from RunescapeBots.Custom_Modules import gelimitfinder
-from RunescapeBots.Custom_Modules import items_to_merch_module
-from RunescapeBots.utilities.utils import wait_for, members_status_check, \
+from Custom_Modules.realmouse import move_mouse_to
+from Custom_Modules import pointfrombox
+from Custom_Modules import gelimitfinder
+from Custom_Modules import items_to_merch_module
+from utilities.utils import wait_for, members_status_check, \
     move_mouse_to_image_within_region, random_typer, move_mouse_to_box
 
 
@@ -34,8 +34,7 @@ completed_offer = 'Tools/screenshots/completed_offer_page.png'
 offer_canceled = 'Tools/screenshots/red_cancel_bar.png'
 enter_price_box = 'Tools/screenshots/price_box.png'
 enter_quantity_box = "Tools/screenshots/quantity_box.png"
-# TODO: this may need to be trimmed
-ge_open_slot = 'Tools/screenshots/ge_open_slot2.png'
+ge_open_slot = 'Tools/screenshots/ge_open_slot.png'
 history_button = 'Tools/screenshots/sales_history_button.png'
 exchange_button = 'Tools/screenshots/grand_exchange_button.png'
 main_ge_window = 'Tools/screenshots/GE_bottom_right.png'
@@ -158,8 +157,7 @@ def main():
                 completed_offer_check = True
                 for ge_slot in runescape_window.list_of_ge_slots:
                     # This is checking if the current GE slot is a completed offer
-                    # TODO: This is not correctly finding the coords of the completed offer but its close
-                    # TODO: This is a terrible way to find a completed offer. Use locate all func?
+                    # TODO: Improve this using the locateAllonScreen func?
                     if ge_slot.top_left_corner[0] < coords_of_completed_offer[0] and ge_slot.top_left_corner[1] < coords_of_completed_offer[1] and ge_slot.bottom_right_corner[0] > coords_of_completed_offer[0] and ge_slot.bottom_right_corner[1] > coords_of_completed_offer[1]:
                         # collects the items from the offer
                         collect_items_from_ge_slot(ge_slot, runescape_window, 'sell')
@@ -304,7 +302,6 @@ def main():
                                 ge_slot.item.set_score_valid()
                                 wait_for(buy_bag, ge_slot)
                                 buy_item(runescape_window, ge_slot)
-                                # TODO: This needs an ability to wait longer for the flip or move on to the next item
                                 wait_for(view_all_offers, runescape_window)
                                 #time.sleep(2+random.random())
                                 #ge_slot.set_image_of_slot()
@@ -330,7 +327,7 @@ def main():
         for runescape_window in list_of_runescape_windows:
             for ge_slot in runescape_window.list_of_ge_slots:
                 if ge_slot.buy_or_sell != None:
-                    # TODO: I am commenting this out for testing. NOt sure what it does completely
+                    # TODO: Either eliminate this or improve its function
                     # check_for_in_progress_or_view_offer(ge_slot)
                     #print('Last screenshot of {} was taken {} seconds ago'.format(ge_slot.item.item_name, time.time()-ge_slot.time_of_last_screenshot))
                     if not (ge_slot.image_of_slot==numpy.array(pyautogui.screenshot(region=(ge_slot.top_left_corner[0], ge_slot.top_left_corner[1] + 90, 165, 10)))).all():
@@ -584,8 +581,7 @@ class ge_slot():
 
 # Merch related function
 def check_for_in_progress_or_view_offer(ge_slot):
-    # TODO: This screenshot needs to be updated to continue
-    # TODO: OFfers are in progress if they aren't empty or sold
+    # TODO: Update or eliminate this. What was the original intent?
     while(True):
         if len(list(pyautogui.locateAllOnScreen('Tools/screenshots/in_progress.png', region=(ge_slot.top_left_corner[0], ge_slot.top_left_corner[1], ge_slot.bottom_right_corner[0]-ge_slot.top_left_corner[0], ge_slot.bottom_right_corner[1]-ge_slot.top_left_corner[1])))) > 0:
             move_mouse_to(random.randint(ge_slot.top_left_corner[0], ge_slot.bottom_right_corner[0]), random.randint(ge_slot.top_left_corner[1], ge_slot.bottom_right_corner[1]))
@@ -678,7 +674,6 @@ def cancel_offer(top_left_corner, bottom_right_corner, runescape_window):
 # Merch related function
 def buy_item(runescape_window, ge_slot):
     # click the correct buy bag
-    # TODO: this may need a region
     move_mouse_to_image_within_region(buy_bag)
     pyautogui.click()
     wait_for(buy_prompt, runescape_window)
@@ -692,7 +687,7 @@ def buy_item(runescape_window, ge_slot):
     # coords_of_price_box = pointfrombox.random_point((runescape_window.bottom_right_corner[0]-384, runescape_window.bottom_right_corner[1]-272),
     #     (runescape_window.bottom_right_corner[0]-291, runescape_window.bottom_right_corner[1]-259))
     # move_mouse_to(coords_of_price_box[0], coords_of_price_box[1])
-    # TODO: Investigate why this entered 178 instead of 177
+    # Sometimes this will enter 1gp more or less to undercut/overcut and move items quickly
     runescape_window.enter_price(ge_slot.item.price_instant_sold_at)
     # pyautogui.click()
     time.sleep(random.random()+1)
@@ -810,17 +805,12 @@ def find_up_to_date_sell_price(runescape_window, ge_slot):
     move_mouse_to_image_within_region(ge_slot.item.image_in_ge_search)
     pyautogui.click()
     time.sleep(1 + random.random())
-    # TODO: This is going to be sloppy. Need to offset the coords returned from pyautogui
-    runescape_window.enter_price(1000)  # qty: (1175, 632, 221, 75)
-    # pyautogui.click()
-    # time.sleep(2+random.random())
-    # # TODO: Pull from market JSON and buy a 2x price
-    # # test_price = check_price(runescape_window)
-    # random_typer('1000')
+    # TODO: Pull from market JSON and buy a 2x price
+    runescape_window.enter_price(1000)
     pyautogui.press('enter')#########################################################################################################
     time.sleep(random.random()+1)
     ge_slot.confirm_offer()
-    # pyautogui.click()
+
     # need to add a way of putting this 1 item bought on cooldown
     runescape_window.add_single_item_to_cooldown(ge_slot.item)
     ge_slot.item.update_number_available_to_buy(ge_slot.item.number_available_to_buy-1)
@@ -1129,12 +1119,13 @@ def detect_runescape_windows():  # this function will detect how many runescape 
 
 
 # this checks how many slots a particular window has available
-# TODO: Have this handle completed GE transactions
 def count_ge_slots(top_left_corner, bottom_right_corner):
     width = bottom_right_corner[0] - top_left_corner[0]
     height = bottom_right_corner[1] - top_left_corner[1]
     # Commenting out the region arg for testing
-    list_of_ge_slots = list(pyautogui.locateAllOnScreen(ge_open_slot, region=(top_left_corner[0], top_left_corner[1], width, height)))
+    list_of_ge_slots = list(pyautogui.locateAllOnScreen(ge_open_slot, region=(top_left_corner[0], top_left_corner[1], width, height), confidence=0.9))
+    # list_of_ge_slots = list(
+    #     pyautogui.locateAllOnScreen(ge_open_slot))
 
     return list_of_ge_slots
 

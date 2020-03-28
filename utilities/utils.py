@@ -4,7 +4,7 @@ import random
 
 import pyautogui
 
-from RunescapeBots.Custom_Modules.realmouse import move_mouse_to
+from Custom_Modules.realmouse import move_mouse_to
 
 # from RunescapeBots.GeMercher import examine_money, runescape_instance
 
