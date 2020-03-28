@@ -38,6 +38,7 @@ ge_open_slot = 'Tools/screenshots/ge_open_slot.png'
 history_button = 'Tools/screenshots/sales_history_button.png'
 exchange_button = 'Tools/screenshots/grand_exchange_button.png'
 main_ge_window = 'Tools/screenshots/GE_bottom_right.png'
+empty_collect_slot = 'Tools/screenshots/empty_collect_slot.png'
 
 def main():
     #pygame.init()
@@ -460,10 +461,12 @@ class runescape_instance():
         self.bottom_right_corner = position
         # I am leaving these numbers hard coded for 1440p until I find another solution
         self.top_left_corner = (position[0] - 482, position[1] - 304)
-        self.position = (self.top_left_corner[0], self.top_left_corner[1], 484, 303)
+        self.region = (self.top_left_corner[0], self.top_left_corner[1], 484, 303)
+
         # Checks to see if player has members
-        # TODO: Change this for OSRS. I am commenting it out and setting it to True for now
+        # TODO: Change this for OSRS. Iself.region am commenting it out and setting it to True for now
         # self.member_status = members_status_check(self.top_left_corner, self.bottom_right_corner)
+
         self.member_status = True
         self.list_of_ge_slots = initialise_ge_slots(self.top_left_corner, self.bottom_right_corner, self)  # this returns a list of ge_slot objects
         # TODO: Fix the money detection
@@ -528,7 +531,7 @@ class runescape_instance():
         return top_left, bottom_right
 
     def confirm_offer(self):
-        move_mouse_to_image_within_region(confirm_offer, self.position)
+        move_mouse_to_image_within_region(confirm_offer, self.region)
         pyautogui.click()
 
     def enter_price(self, price):
@@ -576,7 +579,7 @@ class ge_slot():
         return self.top_left_corner, self.bottom_right_corner
 
     def confirm_offer(self):
-        move_mouse_to_image_within_region(confirm_offer, self.runescape_instance.position)
+        move_mouse_to_image_within_region(confirm_offer, self.runescape_instance.region)
         pyautogui.click()
 
 # Merch related function
@@ -767,7 +770,7 @@ def sell_items(runescape_window, ge_slot, record_number_selling=False):
 def find_up_to_date_buy_price(runescape_window, ge_slot):
     # click correct sell bag
     # need to pass the runescape_window region in expliceitely
-    move_mouse_to_image_within_region(sell_bag, runescape_window.position)
+    move_mouse_to_image_within_region(sell_bag, runescape_window.region)
     pyautogui.click()
     wait_for(sell_offer, runescape_window)
 
@@ -796,12 +799,12 @@ def find_up_to_date_buy_price(runescape_window, ge_slot):
 # Merch related function
 def find_up_to_date_sell_price(runescape_window, ge_slot):
     # click correct buy bag
-    move_mouse_to_image_within_region(buy_bag, ge_slot.runescape_instance.position)
+    move_mouse_to_image_within_region(buy_bag, ge_slot.runescape_instance.region)
     pyautogui.click()
     wait_for(buy_prompt, ge_slot.runescape_instance)
     time.sleep(1+random.random())
     random_typer(str(ge_slot.item.item_name))
-    wait_for(ge_slot.item.image_in_ge_search, ge_slot.runescape_instance.position)
+    wait_for(ge_slot.item.image_in_ge_search, ge_slot.runescape_instance.region)
     move_mouse_to_image_within_region(ge_slot.item.image_in_ge_search)
     pyautogui.click()
     time.sleep(1 + random.random())
@@ -1018,7 +1021,8 @@ def tesser_price_image(image):
 
 # Merch related function
 def collect_items_from_ge_slot(ge_slot, runescape_window, action):
-
+    # TODO: Split this into 3 functions. One for opening the GE slots
+    #  One for checking price and another for collecting items
     # Open specific GE slot
     loc_ge_slot = pointfrombox.random_point(*ge_slot.location())
     move_mouse_to(loc_ge_slot[0], loc_ge_slot[1])
@@ -1027,15 +1031,15 @@ def collect_items_from_ge_slot(ge_slot, runescape_window, action):
     wait_for(completed_offer, runescape_window)
 
     # Check the buy or sell price of the items
+    # Move this into runescape_instance class
     price = check_price(runescape_window.loc_price)
-    # TODO: Need to handle cases when we don't know whether we'll need to collect both items and gold
     # TODO: Click these in a random or almost random order?
     # Collect the gold
     move_mouse_to(*runescape_window.collect_1())
     pyautogui.click()
 
-    # Collect the item
-    if action == 'sell':
+    # TODO: Move this into the runescape_instance class?
+    if pyautogui.locateOnScreen(empty_collect_slot, region=runescape_window.region):
         move_mouse_to(*runescape_window.collect_2())
         pyautogui.click()
 
@@ -1131,30 +1135,31 @@ def count_ge_slots(top_left_corner, bottom_right_corner):
 
 
 # Swaps from history to exchange tab or examines money to reset the logout timer
-# TODO: Change this to just right click somewhere
+# TODO: Change this to just right click somewhere. Commeting out for testing.
 def prevent_logout(top_left_corner, bottom_right_corner, runescape_window):
-    seed = random.random()
-    x, y = pyautogui.size()
-    if seed > 0.5:  # opens up the sale history tab for 5 seconds then returns to ge tab
-        while (True):
-            move_mouse_to(random.randint(0, x), random.randint(0, y))
-            # we will never break out of this loop if this image is not found
-            if len(list(pyautogui.locateAllOnScreen(history_button, region=(
-                    top_left_corner[0], top_left_corner[1], bottom_right_corner[0] - top_left_corner[0],
-                    bottom_right_corner[1] - top_left_corner[1])))) > 0:
-                # we will never break out of this loop if this is not found
-                move_mouse_to_box(history_button, top_left_corner, bottom_right_corner)
-                pyautogui.click()
-                time.sleep(9 * random.random() + 1)
-
-                move_mouse_to_box(exchange_button, top_left_corner, bottom_right_corner)
-                pyautogui.click()
-                break
-            else:
-                print('Could not find sales history button, broke to prevent infinite loop')
-                break
-    else:  # examines the money pouch
-        examine_money(bottom_right_corner)
+    pass
+    # seed = random.random()
+    # x, y = pyautogui.size()
+    # if seed > 0.5:  # opens up the sale history tab for 5 seconds then returns to ge tab
+    #     while (True):
+    #         move_mouse_to(random.randint(0, x), random.randint(0, y))
+    #         # we will never break out of this loop if this image is not found
+    #         if len(list(pyautogui.locateAllOnScreen(history_button, region=(
+    #                 top_left_corner[0], top_left_corner[1], bottom_right_corner[0] - top_left_corner[0],
+    #                 bottom_right_corner[1] - top_left_corner[1])))) > 0:
+    #             # we will never break out of this loop if this is not found
+    #             move_mouse_to_box(history_button, top_left_corner, bottom_right_corner)
+    #             pyautogui.click()
+    #             time.sleep(9 * random.random() + 1)
+    #
+    #             move_mouse_to_box(exchange_button, top_left_corner, bottom_right_corner)
+    #             pyautogui.click()
+    #             break
+    #         else:
+    #             print('Could not find sales history button, broke to prevent infinite loop')
+    #             break
+    # else:  # examines the money pouch
+    #     examine_money(bottom_right_corner)
 
 
 if __name__ == '__main__':

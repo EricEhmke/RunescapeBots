@@ -45,7 +45,7 @@ def random_point(top_left, bottom_right):
 
 # Locates an image on screen and moves the mouse to a random point within that image
 def move_mouse_to_image_within_region(image, region=None):  # region takes in an object
-    image_loc = pyautogui.locateOnScreen(image, region=region) # region is here
+    image_loc = pyautogui.locateOnScreen(image, region=region)  # region is here
 
     # Is this redundant with line above? Or is this waiting for pyautogui to locate on screen?
     while (image_loc == None):
