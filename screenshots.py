@@ -1,0 +1,18 @@
+
+confirm_offer = 'Tools/screenshots/confirm_offer_button.png'
+buy_bag = 'Tools/screenshots/buy_bag.png'
+sell_bag = 'Tools/screenshots/sell_bag.png'
+sell_offer = 'Tools/screenshots/sell_what.png'
+buy_prompt = 'Tools/screenshots/buy_what.png'
+view_all_offers = 'Tools/screenshots/select_an_offer_slot.png'
+completed_ge_slot = 'Tools/screenshots/green_offer_complete_bar.png'
+completed_offer = 'Tools/screenshots/completed_offer_page.png'
+offer_canceled = 'Tools/screenshots/red_cancel_bar.png'
+enter_price_box = 'Tools/screenshots/price_box.png'
+enter_quantity_box = "Tools/screenshots/quantity_box.png"
+ge_open_slot = 'Tools/screenshots/ge_open_slot.png'
+history_button = 'Tools/screenshots/sales_history_button.png'
+exchange_button = 'Tools/screenshots/grand_exchange_button.png'
+main_ge_window = 'Tools/screenshots/GE_bottom_right.png'
+empty_collect_slot = 'Tools/screenshots/empty_collect_slot.png'
+abort_offer = 'Tools/screenshots/abort_offer.png'
