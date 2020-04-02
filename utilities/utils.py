@@ -1,10 +1,13 @@
 import os
 import time
 import random
+import functools
+import datetime
 
 import pyautogui
 
 from Custom_Modules.realmouse import move_mouse_to
+
 
 # from RunescapeBots.GeMercher import examine_money, runescape_instance
 
@@ -27,6 +30,42 @@ from Custom_Modules.realmouse import move_mouse_to
 #     else:  # examines the money pouch
 #         examine_money(bottom_right_corner)
 
+class HumanBreaks:
+    # TODO: This should be tied to a runescape instance
+    def __init__(self, func, start_time=datetime.datetime.now()):
+        functools.update_wrapper(self, func)
+        self.func = func
+        self.time_of_last_break = start_time
+        self.time_of_last_action = None
+
+    def __call__(self, instance, *args, **kwargs):
+        self.calc_break()
+        return self.func(instance, *args, **kwargs)
+
+    def __get__(self, instance, owner):
+        self.calc_break()
+        return functools.partial(self, instance)
+
+    def calc_break(self):
+        self.time_of_last_action = datetime.datetime.now()
+        time_delta = self.time_of_last_action - self.time_of_last_break
+        print(time_delta)
+        if (time_delta.seconds / 60) > 20:
+            sleep_short = 90
+            sleep_long = 280
+            time_to_sleep = random.randint(sleep_short, sleep_long)
+            time.sleep(time_to_sleep)
+            self.time_of_last_break = datetime.datetime.now()
+        else:
+            if random.random() > .95:
+                time.sleep(random.random() + random.randint(1, 10))
+            elif random.random() < .3:
+                time.sleep(random.random() + 1)
+            else:
+                time.sleep(random.random() + .5)
+
+    def set_time_of_last_action(self):
+        self.time_of_last_action = datetime.datetime.now()
 
 # Types a word at a random speed for each letter
 def random_typer(word):
@@ -44,11 +83,13 @@ def random_point(top_left, bottom_right):
 
 
 # Locates an image on screen and moves the mouse to a random point within that image
-def move_mouse_to_image_within_region(image, region=None):  # region takes in an object
-    image_loc = pyautogui.locateOnScreen(image, region=region)  # region is here
+def move_mouse_to_image_within_region(image, region=None):
+    """
+    # Locates an image on screen and moves the mouse to a random point within that image.
+    """
+    image_loc = pyautogui.locateOnScreen(image, region=region)
 
-    # Is this redundant with line above? Or is this waiting for pyautogui to locate on screen?
-    while (image_loc == None):
+    while image_loc is None:
         image_loc = pyautogui.locateOnScreen(image, region=region)
 
     point_to_click = random_point((image_loc[0], image_loc[1]),
@@ -57,8 +98,6 @@ def move_mouse_to_image_within_region(image, region=None):  # region takes in an
     move_mouse_to(point_to_click[0], point_to_click[1])
 
 
-# pass in an image and a search region
-# This looks like it duplicates the function of above but not as well.
 def move_mouse_to_box(image_of_box, top_left_corner, bottom_right_corner):
     box_to_click = pyautogui.locateOnScreen(image_of_box)
     random_x = random.randint(0, box_to_click[2])
@@ -66,7 +105,6 @@ def move_mouse_to_box(image_of_box, top_left_corner, bottom_right_corner):
     move_mouse_to(box_to_click[0] + random_x, box_to_click[1] + random_y)
 
 
-# Waits for pyautogui to find an image onscreen, moves the mouse if the image can't be found
 def wait_for(image, runescape_window):
     # adding a possible failsafe in here
     time_entered = time.time()
@@ -84,7 +122,7 @@ def wait_for(image, runescape_window):
             quit()
         # If the image can't be found it moves the mouse in case the mouse is over the image.
         elif time.time() - time_entered > 5:
-        # elif time() - time_entered > 5:
+            # elif time() - time_entered > 5:
             failsafe_count += 1
             print('We appear to be stuck so attempting to move the mouse and see if this fixes it')
             # print('For debug:')
@@ -117,13 +155,7 @@ def members_status_check(top_left_corner, bottom_right_corner):
     else:
         return (True)
 
-
-
-
-
 # def move_and_resize_runescape_windows():
 #     pass  # this will move and resize the detected windows.
 # # Initially this will just pass since we don't know how to do this, but
 # # further down the road we can add to this and implement it
-
-

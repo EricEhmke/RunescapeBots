@@ -1,4 +1,3 @@
-
 confirm_offer = 'Tools/screenshots/confirm_offer_button.png'
 buy_bag = 'Tools/screenshots/buy_bag.png'
 sell_bag = 'Tools/screenshots/sell_bag.png'

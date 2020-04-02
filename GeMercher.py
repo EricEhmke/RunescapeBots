@@ -1,5 +1,3 @@
-# Main script that will merch items in the GE
-
 import pyautogui
 import time
 import pickle
@@ -11,15 +9,13 @@ import random
 import PIL
 import re
 import screenshots as gui
-# import pygame
 
-# below are custom modules
 from Custom_Modules.realmouse import move_mouse_to
 from Custom_Modules import pointfrombox
 from Custom_Modules import gelimitfinder
 from Custom_Modules import items_to_merch_module
 from utilities.utils import wait_for, members_status_check, move_mouse_to_image_within_region, \
-    random_typer, move_mouse_to_box
+    random_typer, move_mouse_to_box, HumanBreaks
 
 
 def box_to_region(top_left_corner, bottom_right_corner):
@@ -54,10 +50,7 @@ def main():
         score_items = True
         # client_version = input("Which version of the runescape client are you using? (please answer either 'nxt' or 'legacy'\n:")
         client_version = 'legacy'
-        # time.sleep(5)
-        while (client_version != 'nxt' and client_version != 'legacy'):
-            client_version = input(
-                "You failed to enter either nxt or legacy correctly, please enter only the characters 'nxt' or 'legacy' all in lower case")
+
         with (open("client_version.txt", "wb")) as openfile:
             pickle.dump(client_version, (openfile))
         start_time = time.time()
@@ -109,14 +102,15 @@ def main():
     last_saved_list_of_items_in_use = list_of_items_in_use
     time_of_last_update_check = time.time()
     time_of_last_save = time.time()
+
     while (True):
         print('Loop started')
         time.sleep(3)
         total_profit = 0
         for runescape_window in list_of_runescape_windows:
-            if time.time() - runescape_window.last_action_time > logout_prevention_random_number:  # prevent auto logout
+            if time.time() - HumanBreaks.time_of_last_action > logout_prevention_random_number:  # prevent auto logout
                 logout_prevention_random_number = random.randint(150, 200)
-                runescape_window.set_time_of_last_action()
+
                 prevent_logout(runescape_window.top_left_corner, runescape_window.bottom_right_corner, runescape_window)
 
                 wait_for(gui.view_all_offers, runescape_window)
@@ -354,7 +348,6 @@ def main():
                         # print('We are about to cancel an offer that we believe to be in the window with coords {}, we are at line 287'.format(runescape_window.bottom_right_corner))
                         cancel_offer(ge_slot.top_left_corner)
                         wait_for(gui.offer_canceled, runescape_window)
-                        time.sleep(2 + random.random())
                         print("Cancelled {} since the offer hasn't been updated in a while".format(
                             ge_slot.item.item_name))
                         # then if the item was a buy we handle it
@@ -374,8 +367,7 @@ def main():
                         # first we cancel the offer
                         # print('We are about to cancel an offer that we believe to be in the window with coords {}, we are at line 287'.format(runescape_window.bottom_right_corner))
                         cancel_offer(ge_slot.top_left_corner)
-                        wait_for('Tools/screenshots/red_cancel_bar.png', runescape_window)
-                        time.sleep(2 + random.random())
+                        wait_for(gui.offer_canceled, ge_slot.runescape_instance)
                         # print("Cancelled {} since the offer hasn't been updated in a while".format(ge_slot.item.item_name))
                         handle_cancelling_sell(runescape_window, ge_slot, list_of_items_in_use)
                         # we check if any of the item  bought and if so try to sell it
@@ -390,8 +382,8 @@ def main():
                         # first we cancel the offer
                         # print('We are about to cancel an offer that we believe to be in the window with coords {}, we are at line 287'.format(runescape_window.bottom_right_corner))
                         cancel_offer(ge_slot.top_left_corner)
-                        wait_for('Tools/screenshots/red_cancel_bar.png', runescape_window)
-                        time.sleep(2 + random.random())
+                        wait_for(gui.offer_canceled, ge_slot.runescape_instance)
+
                         # print("Cancelled {} since the offer hasn't been updated in a while".format(ge_slot.item.item_name))
                         handle_cancelling_buy(runescape_window, ge_slot, list_of_items_in_use)
                         # we check if any of the item  bought and if so try to sell it
@@ -483,6 +475,7 @@ class item():
 
 
 class runescape_window():
+    # TODO: Make a seperate function to initialize this one
     # TODO: This class should be split in 2. 1 for GE related things and 1 for the RS window
     def __init__(self, position):
         self.bottom_right_corner = position
@@ -543,6 +536,7 @@ class runescape_window():
     def update_money(self, number):
         self.money = number
 
+    @HumanBreaks
     def select_inventory_item(self):
         item_location = pointfrombox.random_point(*self.loc_inventory_item)
         move_mouse_to(item_location[0], item_location[1])
@@ -557,14 +551,12 @@ class ge_slot:
         self.image_of_slot = numpy.array(
             pyautogui.screenshot(region=(self.top_left_corner[0], self.top_left_corner[1] + 90, 165, 10)))
         self.time_of_last_screenshot = None
-
         self.region = (
             self.top_left_corner[0], self.top_left_corner[1], self.bottom_right_corner[0] - self.top_left_corner[0],
             self.bottom_right_corner[1] - self.top_left_corner[1])
         self.buy_or_sell = None
         self.item = None
         self.image_of_slot: None
-
         self.runescape_instance = runescape_instance
         self.loc_price = self.runescape_instance.loc_price
 
@@ -585,41 +577,54 @@ class ge_slot:
         location = pointfrombox.random_point(self.top_left_corner, self.bottom_right_corner)
         return location
 
+    @HumanBreaks
+    def open_ge_slot(self):
+        move_mouse_to(*self.location())
+        pyautogui.click()
+        wait_for(gui.completed_offer, self.runescape_instance)
+
+    @HumanBreaks
     def confirm_offer(self):
         move_mouse_to_image_within_region(gui.confirm_offer, self.runescape_instance.region)
         pyautogui.click()
 
+    @HumanBreaks
     def select_buy_bag(self):
         move_mouse_to_image_within_region(gui.buy_bag, self.region)
         pyautogui.click()
 
+    @HumanBreaks
     def select_sell_bag(self):
         move_mouse_to_image_within_region(gui.sell_bag, self.region)
         pyautogui.click()
 
     # TODO: find a better way to handle the region so this is not static
+    @HumanBreaks
     def enter_price(self, price):
         move_mouse_to_image_within_region(gui.enter_price_box, region=(1177, 632, 221, 76))
         pyautogui.click()
-        time.sleep(2 + random.random())
+        time.sleep(1 + random.random())
         random_typer(str(price))
-        time.sleep(random.random() + 1)
+        time.sleep(random.random() + .25)
         pyautogui.press('enter')
 
     # TODO: find a better way to handle the region so this is not static
+    @HumanBreaks
     def enter_quantity(self, quantity):
         move_mouse_to_image_within_region(gui.enter_quantity_box, region=(954, 632, 221, 76))
         pyautogui.click()
-        time.sleep(2 + random.random())
+        time.sleep(.5 + random.random())
         random_typer(str(quantity))
-        time.sleep(random.random() + 1)
+        time.sleep(random.random() + .25)
         pyautogui.press('enter')
 
+    @HumanBreaks
     def collect_1(self):
         top_left, bottom_right = pointfrombox.random_point(*self.runescape_instance.loc_collection_box_gp)
         move_mouse_to(top_left, bottom_right)
         pyautogui.click()
 
+    @HumanBreaks
     def collect_2(self):
         top_left, bottom_right = pointfrombox.random_point(*self.runescape_instance.loc_collection_box_item)
         move_mouse_to(top_left, bottom_right)
@@ -644,12 +649,12 @@ class ge_slot:
     def find_current_sell_price(self):
         self.select_buy_bag()
         wait_for(gui.buy_prompt, self.runescape_instance)
-        time.sleep(1 + random.random())
         random_typer(str(self.item.item_name))
         wait_for(self.item.image_in_ge_search, self.runescape_instance.region)
         move_mouse_to_image_within_region(self.item.image_in_ge_search)
         pyautogui.click()
-        time.sleep(1 + random.random())
+        # # TODO: put a wait here for the price window
+        # time.sleep(1 + random.random())
         self.enter_price(1000)
         self.confirm_offer()
         wait_for(gui.view_all_offers, self.runescape_instance)
@@ -684,7 +689,6 @@ def handle_cancelling_buy(runescape_window, ge_slot, list_of_items_in_use):
     ge_slot.collect_1()
     # runescape_window.update_money(runescape_window.money+((ge_slot.item.quantity_to_buy-2)*ge_slot.item.price_instant_sold_at)) think this line is breaking it
     # wait and check if we have jumped back to the main window, handle this
-    time.sleep(3)
     if not len(list(pyautogui.locateAllOnScreen(gui.view_all_offers, region=ge_slot.runescape_instance.region))) > 0:
         # we have to click box 2 still so click it and handle it
         ge_slot.collect_2()
@@ -709,9 +713,7 @@ def handle_cancelling_buy(runescape_window, ge_slot, list_of_items_in_use):
 
 
 def cancel_offer(ge_slot):
-    move_mouse_to(ge_slot.location())
-    pyautogui.click()
-    time.sleep(3 + random.random())
+    ge_slot.open_ge_slot()
     move_mouse_to_image_within_region(gui.abort_offer, region=ge_slot.runescape_instance.region)
     wait_for(gui.offer_canceled, ge_slot.runescape_instance)
     ge_slot.collect_1()
@@ -939,7 +941,7 @@ def tesser_price_image(image):
     # Show image
     # plt.imshow(image, cmap='gray')
     # Convert image to string
-    # TODO: Has trouble with 4 vs 9, why is it retuning | and | after new lines?
+    # TODO: This needs to be improved. Has trouble with 4, vs 9 and 6
     txt = pytesseract.image_to_string(image, lang='eng', config='--psm 6')
     txt = txt.replace(",", "")
     txt = re.findall(r'\d+', txt)
@@ -951,7 +953,6 @@ def tesser_price_image(image):
     return int(price)
 
 
-# Merch related function
 def collect_items_from_ge_slot(ge_slot):
     """
     Collects items from a given GE slot and returns the price the item bought or sold at
@@ -962,14 +963,9 @@ def collect_items_from_ge_slot(ge_slot):
     # TODO: Split this into 3 functions. One for opening the GE slots
     #  One for checking price and another for collecting items
     # Open specific GE slot
-    loc_ge_slot = ge_slot.location()
-    move_mouse_to(loc_ge_slot[0], loc_ge_slot[1])
-    pyautogui.click()
-
-    wait_for(gui.completed_offer, runescape_window)
+    ge_slot.open_ge_slot()
 
     # Check the buy or sell price of the items
-    # Move this into runescape_instance class
     price = check_price(ge_slot.loc_price)
     # TODO: Click these in a random or almost random order?
     # TODO: Move this into the runescape_instance class?
@@ -1083,6 +1079,7 @@ def count_ge_slots(top_left_corner, bottom_right_corner):
 
 # Swaps from history to exchange tab or examines money to reset the logout timer
 # TODO: Change this to just right click somewhere. Commeting out for testing.
+@HumanBreaks
 def prevent_logout(top_left_corner, bottom_right_corner, runescape_window):
     pass
     # seed = random.random()
