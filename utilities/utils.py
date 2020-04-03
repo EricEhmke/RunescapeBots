@@ -12,7 +12,7 @@ from Custom_Modules.realmouse import move_mouse_to
 # from RunescapeBots.GeMercher import examine_money, runescape_instance
 
 
-# def prevent_logout(top_left_corner, bottom_right_corner, runescape_window):
+# def prevent_logout(top_left_corner, bottom_right_corner, RunescapeWindow):
 #     seed = random.random()
 #     x, y = pyautogui.size()
 #     if seed > 0.5:  # opens up the sale history tab for 5 seconds then returns to ge tab
@@ -30,28 +30,15 @@ from Custom_Modules.realmouse import move_mouse_to
 #     else:  # examines the money pouch
 #         examine_money(bottom_right_corner)
 
-class HumanBreaks:
-    # TODO: This should be tied to a runescape instance
-    def __init__(self, func, start_time=datetime.datetime.now()):
-        functools.update_wrapper(self, func)
-        self.func = func
-        self.time_of_last_break = start_time
-        self.time_of_last_action = None
 
-    def __call__(self, instance, *args, **kwargs):
-        self.calc_break()
-        return self.func(instance, *args, **kwargs)
+def calc_break(func):
 
-    def __get__(self, instance, owner):
-        self.calc_break()
-        return functools.partial(self, instance)
+    def wrapper(self, *args, **kwargs):
+        time_of_last_action = datetime.datetime.now()
+        time_delta = time_of_last_action - self.time_of_last_break
 
-    def calc_break(self):
-        self.time_of_last_action = datetime.datetime.now()
-        time_delta = self.time_of_last_action - self.time_of_last_break
-        print(time_delta)
         if (time_delta.seconds / 60) > 20:
-            sleep_short = 90
+            sleep_short = 2
             sleep_long = 280
             time_to_sleep = random.randint(sleep_short, sleep_long)
             time.sleep(time_to_sleep)
@@ -63,9 +50,48 @@ class HumanBreaks:
                 time.sleep(random.random() + 1)
             else:
                 time.sleep(random.random() + .5)
+        return func(self, *args, **kwargs)
 
-    def set_time_of_last_action(self):
-        self.time_of_last_action = datetime.datetime.now()
+    return wrapper
+
+
+# class HumanBreaks:
+#     # TODO: This should be tied to a runescape instance
+#     def __init__(self, func, start_time=datetime.datetime.now()):
+#         functools.update_wrapper(self, func)
+#         self.func = func
+#         self.time_of_last_break = start_time
+#         self.time_of_last_action = None
+#
+#     def __call__(self, instance, *args, **kwargs):
+#         self.calc_break()
+#         return self.func(instance, *args, **kwargs)
+#
+#     def __get__(self, instance, owner):
+#         self.calc_break()
+#         return functools.partial(self, instance)
+#
+#     def calc_break(self):
+#         self.time_of_last_action = datetime.datetime.now()
+#         time_delta = self.time_of_last_action - self.time_of_last_break
+#         print(time_delta)
+#         if (time_delta.seconds / 60) > 20:
+#             sleep_short = 90
+#             sleep_long = 280
+#             time_to_sleep = random.randint(sleep_short, sleep_long)
+#             time.sleep(time_to_sleep)
+#             self.time_of_last_break = datetime.datetime.now()
+#         else:
+#             if random.random() > .95:
+#                 time.sleep(random.random() + random.randint(1, 10))
+#             elif random.random() < .3:
+#                 time.sleep(random.random() + 1)
+#             else:
+#                 time.sleep(random.random() + .5)
+#
+#     def set_time_of_last_action(self):
+#         self.time_of_last_action = datetime.datetime.now()
+
 
 # Types a word at a random speed for each letter
 def random_typer(word):
@@ -126,8 +152,8 @@ def wait_for(image, runescape_window):
             failsafe_count += 1
             print('We appear to be stuck so attempting to move the mouse and see if this fixes it')
             # print('For debug:')
-            # print(runescape_window.bottom_right_corner[0], runescape_window.top_left_corner[0])
-            # print(runescape_window.bottom_right_corner[1], runescape_window.top_left_corner[1])
+            # print(RunescapeWindow.bottom_right_corner[0], RunescapeWindow.top_left_corner[0])
+            # print(RunescapeWindow.bottom_right_corner[1], RunescapeWindow.top_left_corner[1])
             move_mouse_to(
                 random.randint(runescape_window.top_left_corner[0], runescape_window.bottom_right_corner[0]),
                 random.randint(runescape_window.top_left_corner[1], runescape_window.bottom_right_corner[1]))

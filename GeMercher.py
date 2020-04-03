@@ -9,13 +9,14 @@ import random
 import PIL
 import re
 import screenshots as gui
+import datetime
 
 from Custom_Modules.realmouse import move_mouse_to
 from Custom_Modules import pointfrombox
 from Custom_Modules import gelimitfinder
 from Custom_Modules import items_to_merch_module
 from utilities.utils import wait_for, members_status_check, move_mouse_to_image_within_region, \
-    random_typer, move_mouse_to_box, HumanBreaks
+    random_typer, move_mouse_to_box, HumanBreaks, calc_break
 
 
 def box_to_region(top_left_corner, bottom_right_corner):
@@ -107,13 +108,13 @@ def main():
         print('Loop started')
         time.sleep(3)
         total_profit = 0
-        for runescape_window in list_of_runescape_windows:
-            if time.time() - HumanBreaks.time_of_last_action > logout_prevention_random_number:  # prevent auto logout
-                logout_prevention_random_number = random.randint(150, 200)
-
-                prevent_logout(runescape_window.top_left_corner, runescape_window.bottom_right_corner, runescape_window)
-
-                wait_for(gui.view_all_offers, runescape_window)
+        # for runescape_window in list_of_runescape_windows:
+        #     if time.time() - HumanBreaks.time_of_last_action > logout_prevention_random_number:  # prevent auto logout
+        #         logout_prevention_random_number = random.randint(150, 200)
+        #
+        #         prevent_logout(runescape_window.top_left_corner, runescape_window.bottom_right_corner, runescape_window)
+        #
+        #         wait_for(gui.view_all_offers, runescape_window)
         # for each window we need to check if there are any completed offers
         # and if so handle them
         completed_offer_check = False  # variable to see if there was a completed offer
@@ -498,6 +499,7 @@ class runescape_window():
         # self.money = detect_money(self.top_left_corner, self.bottom_right_corner) TESSER NEEDS FIXING
         self.money = 14_000
         self.profit = 0
+        self.time_of_last_break = datetime.datetime.now()
         self.last_action_time = time.time()
         # TODO: Change this to a simple left click or somthing According to authoer this is here just to make sure game doesn log out. Commented out just for testing
         # examine_money(position)
@@ -536,7 +538,7 @@ class runescape_window():
     def update_money(self, number):
         self.money = number
 
-    @HumanBreaks
+    @calc_break
     def select_inventory_item(self):
         item_location = pointfrombox.random_point(*self.loc_inventory_item)
         move_mouse_to(item_location[0], item_location[1])
@@ -558,7 +560,9 @@ class ge_slot:
         self.item = None
         self.image_of_slot: None
         self.runescape_instance = runescape_instance
-        self.loc_price = self.runescape_instance.loc_price
+
+    def __getattr__(self, attr):
+        return getattr(self.runescape_instance, attr)
 
     def update_buy_or_sell_state(self, state):
         self.buy_or_sell = state
@@ -577,29 +581,29 @@ class ge_slot:
         location = pointfrombox.random_point(self.top_left_corner, self.bottom_right_corner)
         return location
 
-    @HumanBreaks
+    @calc_break
     def open_ge_slot(self):
         move_mouse_to(*self.location())
         pyautogui.click()
         wait_for(gui.completed_offer, self.runescape_instance)
 
-    @HumanBreaks
+    @calc_break
     def confirm_offer(self):
         move_mouse_to_image_within_region(gui.confirm_offer, self.runescape_instance.region)
         pyautogui.click()
 
-    @HumanBreaks
+    @calc_break
     def select_buy_bag(self):
         move_mouse_to_image_within_region(gui.buy_bag, self.region)
         pyautogui.click()
 
-    @HumanBreaks
+    @calc_break
     def select_sell_bag(self):
         move_mouse_to_image_within_region(gui.sell_bag, self.region)
         pyautogui.click()
 
     # TODO: find a better way to handle the region so this is not static
-    @HumanBreaks
+    @calc_break
     def enter_price(self, price):
         move_mouse_to_image_within_region(gui.enter_price_box, region=(1177, 632, 221, 76))
         pyautogui.click()
@@ -609,7 +613,7 @@ class ge_slot:
         pyautogui.press('enter')
 
     # TODO: find a better way to handle the region so this is not static
-    @HumanBreaks
+    @calc_break
     def enter_quantity(self, quantity):
         move_mouse_to_image_within_region(gui.enter_quantity_box, region=(954, 632, 221, 76))
         pyautogui.click()
@@ -618,13 +622,13 @@ class ge_slot:
         time.sleep(random.random() + .25)
         pyautogui.press('enter')
 
-    @HumanBreaks
+    @calc_break
     def collect_1(self):
         top_left, bottom_right = pointfrombox.random_point(*self.runescape_instance.loc_collection_box_gp)
         move_mouse_to(top_left, bottom_right)
         pyautogui.click()
 
-    @HumanBreaks
+    @calc_break
     def collect_2(self):
         top_left, bottom_right = pointfrombox.random_point(*self.runescape_instance.loc_collection_box_item)
         move_mouse_to(top_left, bottom_right)
@@ -1079,7 +1083,7 @@ def count_ge_slots(top_left_corner, bottom_right_corner):
 
 # Swaps from history to exchange tab or examines money to reset the logout timer
 # TODO: Change this to just right click somewhere. Commeting out for testing.
-@HumanBreaks
+@calc_break
 def prevent_logout(top_left_corner, bottom_right_corner, runescape_window):
     pass
     # seed = random.random()
