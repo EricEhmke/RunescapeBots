@@ -32,6 +32,11 @@ from Custom_Modules.realmouse import move_mouse_to
 
 
 def calc_break(func):
+    """
+    A decorator function that puts a random delay between tasks or begins an extended break
+    :param func: decorated function
+    :return: the decorated function after a random break
+    """
 
     def wrapper(self, *args, **kwargs):
         time_of_last_action = datetime.datetime.now()
@@ -53,44 +58,6 @@ def calc_break(func):
         return func(self, *args, **kwargs)
 
     return wrapper
-
-
-# class HumanBreaks:
-#     # TODO: This should be tied to a runescape instance
-#     def __init__(self, func, start_time=datetime.datetime.now()):
-#         functools.update_wrapper(self, func)
-#         self.func = func
-#         self.time_of_last_break = start_time
-#         self.time_of_last_action = None
-#
-#     def __call__(self, instance, *args, **kwargs):
-#         self.calc_break()
-#         return self.func(instance, *args, **kwargs)
-#
-#     def __get__(self, instance, owner):
-#         self.calc_break()
-#         return functools.partial(self, instance)
-#
-#     def calc_break(self):
-#         self.time_of_last_action = datetime.datetime.now()
-#         time_delta = self.time_of_last_action - self.time_of_last_break
-#         print(time_delta)
-#         if (time_delta.seconds / 60) > 20:
-#             sleep_short = 90
-#             sleep_long = 280
-#             time_to_sleep = random.randint(sleep_short, sleep_long)
-#             time.sleep(time_to_sleep)
-#             self.time_of_last_break = datetime.datetime.now()
-#         else:
-#             if random.random() > .95:
-#                 time.sleep(random.random() + random.randint(1, 10))
-#             elif random.random() < .3:
-#                 time.sleep(random.random() + 1)
-#             else:
-#                 time.sleep(random.random() + .5)
-#
-#     def set_time_of_last_action(self):
-#         self.time_of_last_action = datetime.datetime.now()
 
 
 # Types a word at a random speed for each letter

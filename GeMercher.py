@@ -15,8 +15,7 @@ from Custom_Modules.realmouse import move_mouse_to
 from Custom_Modules import pointfrombox
 from Custom_Modules import gelimitfinder
 from Custom_Modules import items_to_merch_module
-from utilities.utils import wait_for, members_status_check, move_mouse_to_image_within_region, \
-    random_typer, move_mouse_to_box, HumanBreaks, calc_break
+from utilities.utils import wait_for, move_mouse_to_image_within_region, random_typer, calc_break
 
 
 def box_to_region(top_left_corner, bottom_right_corner):
@@ -25,14 +24,11 @@ def box_to_region(top_left_corner, bottom_right_corner):
 
 
 def main():
-    global client_version
     try:
         with (open("list_of_runescape_windows.txt", "rb")) as openfile:
             list_of_runescape_windows = pickle.load(openfile)
         with (open("list_of_items_in_use.txt", "rb")) as openfile:
             list_of_items_in_use = pickle.load(openfile)
-        with (open("client_version.txt", "rb")) as openfile:
-            client_version = pickle.load(openfile)
         with (open("start_time.txt", "rb")) as openfile:
             start_time = pickle.load(openfile)
         with (open("time_of_last_save.txt", "rb")) as openfile:
@@ -49,20 +45,9 @@ def main():
     except Exception as e:
         print(e)
         score_items = True
-        # client_version = input("Which version of the runescape client are you using? (please answer either 'nxt' or 'legacy'\n:")
-        client_version = 'legacy'
-
-        with (open("client_version.txt", "wb")) as openfile:
-            pickle.dump(client_version, (openfile))
         start_time = time.time()
         with (open("start_time.txt", "wb")) as openfile:
             pickle.dump(start_time, (openfile))
-        # maybe we should add a pickle load up here so that we can load in a previous state if we have one?
-        # this would mean we can save instances and only have to initialise one if we don't have a save file to load
-        # we should also have a variable that tells us whether or not we loaded from a saved instance
-        # this is important because if we did we don't want to be scoring items immediately (this would create articifically low scores)
-        # ask me for more info on this
-        # returns a list of object of runescape windows and all their features
         list_of_runescape_windows = detect_runescape_windows()
         if len(list_of_runescape_windows) > 1:
             print('We have detected {} windows'.format(len(list_of_runescape_windows)))
@@ -432,7 +417,7 @@ def main():
 # all orders should be unique, ie not buying coal on 2 windows at once, this would harm profit since they would be
 # competing with eachother. Instead one window should buy it, then once it has sold the next window can start to buy
 
-class item():
+class Item:
 
     def __init__(self, name, limit):
         self.item_name = name
@@ -475,7 +460,7 @@ class item():
         self.current_state = state
 
 
-class runescape_window():
+class RunescapeWindow:
     # TODO: Make a seperate function to initialize this one
     # TODO: This class should be split in 2. 1 for GE related things and 1 for the RS window
     def __init__(self, position):
@@ -483,11 +468,6 @@ class runescape_window():
         # I am leaving these numbers hard coded for 1440p until I find another solution
         self.top_left_corner = (position[0] - 482, position[1] - 304)
         self.region = (self.top_left_corner[0], self.top_left_corner[1], 484, 303)
-
-        # Checks to see if player has members
-        # TODO: Change this for OSRS. Iself.region am commenting it out and setting it to True for now
-        # self.member_status = members_status_check(self.top_left_corner, self.bottom_right_corner)
-
         self.member_status = True
         # TODO: Move this to the GE slot class
         self.loc_price = (self.bottom_right_corner[0] - 396, self.bottom_right_corner[1] - 61), \
@@ -500,7 +480,6 @@ class runescape_window():
         self.money = 14_000
         self.profit = 0
         self.time_of_last_break = datetime.datetime.now()
-        self.last_action_time = time.time()
         # TODO: Change this to a simple left click or somthing According to authoer this is here just to make sure game doesn log out. Commented out just for testing
         # examine_money(position)
         self.items_to_merch = items_to_merch(self.member_status)
@@ -526,9 +505,6 @@ class runescape_window():
     def check_for_empty_ge_slots(self):
         self.number_of_empty_ge_slots = empty_ge_slot_check(self.list_of_ge_slots)
 
-    def set_time_of_last_action(self):
-        self.last_action_time = time.time()
-
     def add_to_items_on_cooldown(self, item):
         self.list_of_items_on_cooldown.append((item.item_name, time.time(), item.quantity_to_buy, item))
 
@@ -545,7 +521,7 @@ class runescape_window():
         pyautogui.click()
 
 
-class ge_slot:
+class GESlot:
 
     def __init__(self, position, runescape_instance):
         self.top_left_corner = position[0]
@@ -657,8 +633,6 @@ class ge_slot:
         wait_for(self.item.image_in_ge_search, self.runescape_instance.region)
         move_mouse_to_image_within_region(self.item.image_in_ge_search)
         pyautogui.click()
-        # # TODO: put a wait here for the price window
-        # time.sleep(1 + random.random())
         self.enter_price(1000)
         self.confirm_offer()
         wait_for(gui.view_all_offers, self.runescape_instance)
@@ -689,10 +663,8 @@ def handle_cancelling_sell(runescape_window, ge_slot, list_of_items_in_use):
 
 
 def handle_cancelling_buy(runescape_window, ge_slot, list_of_items_in_use):
-    # click box 1
     ge_slot.collect_1()
-    # runescape_window.update_money(runescape_window.money+((ge_slot.item.quantity_to_buy-2)*ge_slot.item.price_instant_sold_at)) think this line is breaking it
-    # wait and check if we have jumped back to the main window, handle this
+
     if not len(list(pyautogui.locateAllOnScreen(gui.view_all_offers, region=ge_slot.runescape_instance.region))) > 0:
         # we have to click box 2 still so click it and handle it
         ge_slot.collect_2()
@@ -822,15 +794,15 @@ def check_price(location):
 
 # Merch related function
 def detect_money(top_left_corner, bottom_right_corner):
-    global client_version
-    money_icon_path = 'Tools/screenshots/money_icon_' + client_version + '.png'
+    # TODO: Update this screenshot
+    money_icon_path = 'Tools/screenshots/money_icon.png'
     money_icon_loc = pyautogui.locateOnScreen(money_icon_path, region=(
         top_left_corner[0], top_left_corner[1], bottom_right_corner[0] - top_left_corner[0],
         bottom_right_corner[1] - top_left_corner[1]))
     money_val_loc = (money_icon_loc[0] + 22, money_icon_loc[1], money_icon_loc[0] + 100, money_icon_loc[1] + 18)
     image = screengrab_as_numpy_array(money_val_loc)
     money_val = tesser_money_image(image)
-    return (money_val)
+    return money_val
 
 
 # Merch related function
@@ -918,7 +890,7 @@ def tesser_quantity_image(image):
     return (txt)
 
 
-# Converts a screenshot/image into a numpy array
+
 def screengrab_as_numpy_array(location):
     """
     Takes a screenshot at provided location and returns screenshot as a numpy array
@@ -950,11 +922,11 @@ def tesser_price_image(image):
     txt = txt.replace(",", "")
     txt = re.findall(r'\d+', txt)
     try:
-        price = int(txt[1]) / int(txt[0])
+        txt = int(txt[1]) / int(txt[0])
     except:
         print('Problem with tesser_price_image ocr occured. Price could not be found')
 
-    return int(price)
+    return int(txt)
 
 
 def collect_items_from_ge_slot(ge_slot):
@@ -980,12 +952,11 @@ def collect_items_from_ge_slot(ge_slot):
 
     ge_slot.collect_1()
 
-    wait_for(gui.view_all_offers, runescape_window)
+    wait_for(gui.view_all_offers, ge_slot.runescape_instance)
 
     return price
 
 
-# Merch related function
 def empty_ge_slot_check(list_of_ge_slots):
     number_of_ge_slots_open = 0
     for slot in list_of_ge_slots:
@@ -998,7 +969,7 @@ def empty_ge_slot_check(list_of_ge_slots):
 # This should continue and take a screenshot for items that don't have one
 def check_if_image_exists(item_name):
     global client_version
-    file_name = 'Tools/screenshots/items/' + client_version + '_items/' + item_name.replace(' ', '_') + '.png'
+    file_name = 'Tools/screenshots/items/legacy_items/' + item_name.replace(' ', '_') + '.png'
     if os.path.isfile(file_name):
         return (file_name)
     else:
@@ -1017,7 +988,7 @@ def items_to_merch(member_status):
         for i in range(len(list_of_item_limits)):
             list_of_item_limits[i] -= 1
         for i in range(len(list_of_items)):
-            items_to_merch.append(item(list_of_items[i], list_of_item_limits[i]))
+            items_to_merch.append(Item(list_of_items[i], list_of_item_limits[i]))
         # we are a member so initialise a members item list
     else:
         items_to_merch = []
@@ -1027,9 +998,9 @@ def items_to_merch(member_status):
         for i in range(len(list_of_item_limits)):
             list_of_item_limits[i] -= 1
         for i in range(len(list_of_items)):
-            items_to_merch.append(item(list_of_items[i], list_of_item_limits[i]))
+            items_to_merch.append(Item(list_of_items[i], list_of_item_limits[i]))
         # we are f2p so initialise a f2p item list
-    return (items_to_merch)
+    return items_to_merch
 
 
 # Merch related function
@@ -1055,16 +1026,20 @@ def examine_money(position):
 def initialise_ge_slots(top_left_corner, bottom_right_corner, runescape_window):
     ge_slots = []
     for i in count_ge_slots(top_left_corner, bottom_right_corner):
-        ge_slots.append(ge_slot(((i[0], i[1]), (i[0] + i[2], i[1] + i[3])), runescape_window))
+        ge_slots.append(GESlot(((i[0], i[1]), (i[0] + i[2], i[1] + i[3])), runescape_window))
     return ge_slots
 
 
-def detect_runescape_windows():  # this function will detect how many runescape windows are present and where they are
+def detect_runescape_windows():
+    """
+    Detects the number of Runescape Windows on screen
+    :return: a list of Runescape Windows and their locations
+    """
     list_of_runescape_windows = []
     for i in pyautogui.locateAllOnScreen(gui.main_ge_window):
         list_of_runescape_windows.append(
-            runescape_window((i[0] + i[2], i[1] + i[3])))
-    return (list_of_runescape_windows)
+            RunescapeWindow((i[0] + i[2], i[1] + i[3])))
+    return list_of_runescape_windows
 
 
 # this checks how many slots a particular window has available
@@ -1075,8 +1050,6 @@ def count_ge_slots(top_left_corner, bottom_right_corner):
     list_of_ge_slots = list(
         pyautogui.locateAllOnScreen(gui.ge_open_slot, region=(top_left_corner[0], top_left_corner[1], width, height),
                                     confidence=0.9))
-    # list_of_ge_slots = list(
-    #     pyautogui.locateAllOnScreen(ge_open_slot))
 
     return list_of_ge_slots
 
@@ -1112,6 +1085,3 @@ def prevent_logout(top_left_corner, bottom_right_corner, runescape_window):
 
 if __name__ == '__main__':
     main()
-    # move_mouse_to_image_within_region(enter_price_box, region=(1177, 632, 221, 76))
-    # coords_of_completed_offer = pyautogui.locateOnScreen(completed_ge_slot)
-    # print(coords_of_completed_offer)
