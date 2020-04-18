@@ -1,34 +1,156 @@
-import os
 import time
 import random
-import functools
 import datetime
-
+import numpy as np
+import cv2
+import pytesseract
+import re
 import pyautogui
+import PIL
 
 from Custom_Modules.realmouse import move_mouse_to
 
 
-# from RunescapeBots.GeMercher import examine_money, runescape_instance
+def tesser_money_image(image):
+    # image = cv2.resize(image, (0,0), fx=2, fy=2)
+    image = PIL.Image.fromarray(image)
+    txt = pytesseract.image_to_string(image, config='-psm 7')
+    txt_list = list(txt)
+    for i in range(len(txt_list)):
+        if txt_list[i] == 'o':
+            txt_list[i] = '0'
+        elif txt_list[i] == 'O':
+            txt_list[i] = '0'
+        elif txt_list[i] == 'l':
+            txt_list[i] = '1'
+        elif txt_list[i] == 'I':
+            txt_list[i] = '1'
+        elif txt_list[i] == 'i':
+            txt_list[i] = '1'
+        elif txt_list[i] == 'M':
+            txt_list[i] = '000000'
+        elif txt_list[i] == 'K':
+            txt_list[i] = '000'
+        elif txt_list[i] == 'm':
+            txt_list[i] = '000000'
+        elif txt_list[i] == 'k':
+            txt_list[i] = '000'
+        elif txt_list[i] == 's':
+            txt_list[i] = '5'
+        elif txt_list[i] == 'S':
+            txt_list[i] = '5'
+        elif txt_list[i] == 'W':
+            txt_list[i] = '40'
+    txt = int(''.join(txt_list))
+    return (txt)
 
 
-# def prevent_logout(top_left_corner, bottom_right_corner, RunescapeWindow):
-#     seed = random.random()
-#     x, y = pyautogui.size()
-#     if seed > 0.5:  # opens up the sale history tab for 5 seconds then returns to ge tab
-#         while (True):
-#             realmouse.move_mouse_to(random.randint(0, x), random.randint(0, y))
-#             if len(list(pyautogui.locateAllOnScreen('Tools/screenshots/sale_history_button.png', region=(
-#                     top_left_corner[0], top_left_corner[1], bottom_right_corner[0] - top_left_corner[0],
-#                     bottom_right_corner[1] - top_left_corner[1])))) > 0:
-#                 move_mouse_to_box('Tools/screenshots/sale_history_button.png', top_left_corner, bottom_right_corner)
-#                 pyautogui.click()
-#                 time.sleep(9 * random.random() + 1)
-#                 move_mouse_to_box('Tools/screenshots/grand_exchange_button.png', top_left_corner, bottom_right_corner)
-#                 pyautogui.click()
-#                 break
-#     else:  # examines the money pouch
-#         examine_money(bottom_right_corner)
+# Merch related function
+def tesser_quantity_image(image):
+    image = cv2.resize(image, (0, 0), fx=2, fy=2)
+    image = PIL.Image.fromarray(image)
+    txt = pytesseract.image_to_string(image, config='-psm 7')
+    txt = txt.replace(",", "")
+    txt = txt.replace(" ", "")
+    txt = txt.replace(".", "")
+    if len(txt) == 0:
+        txt = pytesseract.image_to_string(image, config='-psm 10')
+    try:
+        txt = int(txt)
+    except:
+        txt_list = list(txt)
+        for i in range(len(txt_list)):
+            if txt_list[i] == 'B':
+                txt_list[i] = '8'
+            elif txt_list[i] == 'l':
+                txt_list[i] = '1'
+            elif txt_list[i] == 'L':
+                txt_list[i] = '1'
+            elif txt_list[i] == 'i':
+                txt_list[i] = '1'
+            elif txt_list[i] == 'I':
+                txt_list[i] = '1'
+            elif txt_list[i] == 'o':
+                txt_list[i] = '0'
+            elif txt_list[i] == 'O':
+                txt_list[i] = '0'
+            elif txt_list[i] == 'z':
+                txt_list[i] = '2'
+            elif txt_list[i] == 'Z':
+                txt_list[i] = '2'
+            elif txt_list[i] == 'Q':
+                txt_list[i] = '0'
+            elif txt_list[i] == 's':
+                txt_list[i] = '5'
+            elif txt_list[i] == 'S':
+                txt_list[i] = '5'
+            elif txt_list[i] == '.':
+                txt_list[i] = '9'
+            elif txt_list[i] == ':':
+                txt_list[i] = '8'
+        if len(txt_list) > 1:
+            txt = int(''.join(txt_list))
+        else:
+            txt = int(txt_list[0])
+    return (txt)
+
+
+def box_to_region(top_left_corner, bottom_right_corner):
+    """
+
+    :param top_left_corner: coordinates of the top left corner of a box
+    :param bottom_right_corner: coordinates of the top left corner of a box
+    :return: a pyautogui region
+    """
+    return top_left_corner[0], top_left_corner[1], bottom_right_corner[0] - top_left_corner[0], \
+           bottom_right_corner[1] - top_left_corner[1]
+
+
+def check_price(location):
+    """
+    A function that reads a price from the screen via Tesseract OCR
+    :param location: X, Y coords of the upper right and lower left hand corners of the area to be read
+    :return: int
+    """
+    price = tesser_price_image(screengrab_as_numpy_array(location))
+    return price
+
+
+def tesser_price_image(image):
+    # Enlarge image for easier processing
+    image = cv2.resize(src=image, dsize=None, fx=5, fy=5)
+    # Convert image to grayscale
+    image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    # Apply a threshold to change to complete black or white
+    retval, image = cv2.threshold(image, 100, 255, cv2.THRESH_BINARY)
+    # Invert image so text is black on white
+    image = 255 - image
+    # Show image
+    # plt.imshow(image, cmap='gray')
+    # Convert image to string
+    # TODO: This needs to be improved. Has trouble with 4, vs 9 and 6
+    txt = pytesseract.image_to_string(image, lang='eng', config='--psm 6')
+    txt = txt.replace(",", "")
+    txt = re.findall(r'\d+', txt)
+    try:
+        txt = int(txt[1]) / int(txt[0])
+    except:
+        print('Problem with tesser_price_image ocr occured. Price could not be found')
+
+    return int(txt)
+
+
+def screengrab_as_numpy_array(location):
+    """
+    Takes a screenshot at provided location and returns screenshot as a numpy array
+    :param location: x,y location points of bottom left and top right corners of an area on screen
+    :return: numpy.array
+    """
+    top_left, bottom_right = location
+    width = top_left[0] - top_left[1]
+    height = bottom_right[1] - top_left[1]
+    im = np.array(pyautogui.screenshot(region=(top_left[0], top_left[1], width, height)))
+    return im
 
 
 def calc_break(func):
@@ -109,7 +231,6 @@ def wait_for(image, runescape_window):
         found = pyautogui.locateOnScreen(image)
         if found != None:
             break
-
         elif failsafe_count > 10:
             print("We can't seem to fix the problem so the script is now aborting")
             quit()
@@ -118,26 +239,12 @@ def wait_for(image, runescape_window):
             # elif time() - time_entered > 5:
             failsafe_count += 1
             print('We appear to be stuck so attempting to move the mouse and see if this fixes it')
-            # print('For debug:')
-            # print(RunescapeWindow.bottom_right_corner[0], RunescapeWindow.top_left_corner[0])
-            # print(RunescapeWindow.bottom_right_corner[1], RunescapeWindow.top_left_corner[1])
             move_mouse_to(
                 random.randint(runescape_window.top_left_corner[0], runescape_window.bottom_right_corner[0]),
                 random.randint(runescape_window.top_left_corner[1], runescape_window.bottom_right_corner[1]))
             # pyautogui.click()
             time_entered = time.time()
 
-
-# This probably belongs here in a more generalized form
-# def check_if_image_exists(item_name):
-#     global client_version
-#     file_name = 'Tools/screenshots/items/' + client_version + '_items/' + item_name.replace(' ', '_') + '.png'
-#     if os.path.isfile(file_name):
-#         return (file_name)
-#     else:
-#         print(
-#             'You do not have an image file for {} so the script is aborting.'.format(
-#                 item_name, item_name))
 
 def members_status_check(top_left_corner, bottom_right_corner):
     width = bottom_right_corner[0] - top_left_corner[0]
@@ -148,7 +255,6 @@ def members_status_check(top_left_corner, bottom_right_corner):
     else:
         return (True)
 
-# def move_and_resize_runescape_windows():
-#     pass  # this will move and resize the detected windows.
-# # Initially this will just pass since we don't know how to do this, but
-# # further down the road we can add to this and implement it
+
+def percent_of(buy_price, sell_price):
+    return 1 - (buy_price / sell_price)
