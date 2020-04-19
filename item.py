@@ -69,7 +69,7 @@ class Item:
         transactions = self.runescape_instance.GEMerch.transaction_record
         aged_threshold = datetime.datetime.now() - datetime.timedelta(hours=4)
         item_mask = transactions['Item'] == self.item_name
-        time_mask = transactions['Timestamp'] > aged_threshold
+        time_mask = pd.to_datetime(transactions['Timestamp']) > aged_threshold
         num_items_on_cooldown = transactions.loc[item_mask & time_mask]['Qty'].sum()
         return self.limit - num_items_on_cooldown
 
@@ -89,4 +89,5 @@ class Item:
     def meets_profit_threshold(self):
         if self.price_instant_bought_at or self.price_instant_sold_at is None:
             return True
-        return self.return_on_investment() > 0.025
+
+        return (self.return_on_investment() > 0.025) and (self.price_instant_bought_at - self.price_instant_sold_at > 3)

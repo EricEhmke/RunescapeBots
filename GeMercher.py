@@ -6,31 +6,12 @@ import pickle
 import random
 import screenshots as gui
 import datetime
-
+import numpy as np
 
 from GESlot import record_transaction, collect_items_from_ge_slot
 from RunescapeWindow import RunescapeWindow
-from Custom_Modules import items_to_merch_module
-from utilities.utils import wait_for, move_mouse_to_image_within_region, random_typer, screengrab_as_numpy_array,\
+from utilities.utils import wait_for, move_mouse_to_image_within_region, random_typer, screengrab_as_numpy_array, \
     tesser_quantity_image
-
-
-def load_previous_scores():
-    """
-    Loads a dict of previous scores if it exists, returns an empty dict for population if not
-    :return: dict
-    """
-    try:
-        with (open("item_names_with_scores.txt", "rb")) as openfile:
-            item_names_with_scores = pickle.load(openfile)
-        score_items = True
-        print(item_names_with_scores)
-    except:
-        item_names_with_scores = {}
-        score_items = False
-        print("We couldn't find a save file for item scores so items will be picked randomly")
-    # this will check if all items used are scored and if not will give them a default score of 10
-    return item_names_with_scores, score_items
 
 
 def load_previous_items():
@@ -94,18 +75,19 @@ def clear_completed_offers(runescape_windows, scores_valid):
                 ge_slot.reset_slot()
 
 
-def fill_empty_slots(scored_items, script):
+def fill_empty_slots(script):
     # TODO: This function does more than one thing
     # IF I have a pickled file I should verify whether its good or not
     empty_slots = []
     for instance in sorted(script.runescape_windows, key=operator.attrgetter('money')):
         for ge_slot in instance.list_of_ge_slots:
-            if ge_slot.buy_or_sell is None and ge_slot.runescape_instance.items_available:
+            if ge_slot.buy_or_sell is None and ge_slot.runescape_instance.items_available():
                 empty_slots.append(ge_slot)
 
     if not empty_slots:
         print('No empty GE slots found in all windows')
         return
+
     empty_slot = empty_slots[0]
 
     # If item is_aged() & score < 0 then reset score to 0 and see if its profitable?
@@ -152,10 +134,6 @@ def main():
     merchant = Merchant()
     merchant.detect_windows()
     merchant.load_transaction_record()
-    merchant.load_previous_scores()
-    merchant.set_default_scores()
-    merchant.reset_negative_scores()
-    merchant.save_scores()
 
     previous_total_profit = None
     # TODO: Find better way to pickle whole state
@@ -168,106 +146,104 @@ def main():
         if not merchant.score_items:
             print('Loaded from save: Previous scores are being marked as invalid and will not effect ratings')
             merchant.score_items = True
-        fill_empty_slots(merchant.scored_items, merchant)
-
-        # if time.time()-time_of_last_update_check > 10:
+        fill_empty_slots(script=merchant)
 
         # Check in process offers
-        # break_check = False
-        # for runescape_window in runescape_windows:
-        #     for ge_slot in runescape_window.list_of_ge_slots:
-        #         # Checks for slots that are in process
-        #         if ge_slot.buy_or_sell != None:
-        #             # TODO: Either eliminate this or improve its function
-        #             # check_for_in_progress_or_view_offer(ge_slot)
-        #             # print('Last screenshot of {} was taken {} seconds ago'.format(ge_slot.item.item_name, time.time()-ge_slot.time_of_last_screenshot))
-        #             if not (ge_slot.image_of_slot == numpy.array(pyautogui.screenshot(
-        #                     region=(ge_slot.top_left_corner[0], ge_slot.top_left_corner[1] + 90, 165, 10)))).all():
-        #                 ge_slot.set_image_of_slot()
-        #             elif time.time() - ge_slot.time_of_last_screenshot > 1800 and not completed_offer_check and not empty_slot_check:
-        #                 print('Image of {} has not been updated in 30 minutes so we are aborting the offer'.format(
-        #                     ge_slot.item.item_name))
-        #                 # run cancel offer code
-        #                 # first we cancel the offer
-        #                 # print('We are about to cancel an offer that we believe to be in the window with coords {}, we are at line 287'.format(runescape_window.bottom_right_corner))
-        #                 cancel_offer(ge_slot.top_left_corner)
-        #                 wait_for(gui.offer_canceled, runescape_window)
-        #                 print("Cancelled {} since the offer hasn't been updated in a while".format(
-        #                     ge_slot.item.item_name))
-        #                 # then if the item was a buy we handle it
-        #                 if ge_slot.buy_or_sell == 'buy':
-        #                     handle_cancelling_buy(runescape_window, ge_slot, list_of_items_in_use)
-        #                 elif ge_slot.buy_or_sell == 'sell':
-        #                     handle_cancelling_sell(ge_slot, list_of_items_in_use)
-        #                 # we check if any of the item  bought and if so try to sell it
-        #                 # we could check the sale history to read the number of items bought and update accordingly
-        #                 # then if it was a sell we handle it
-        #                 # we would simply retrieve the items and money and update accordingly, then find the new sell price and sell
-        #                 break_check = True
-        #             elif time.time() - ge_slot.time_of_last_screenshot > 3600 and ge_slot.buy_or_sell == 'sell':
-        #                 print('Image of {} has not been updated in 1 hour so we are aborting the offer'.format(
-        #                     ge_slot.item.item_name))
-        #                 # run cancel offer code
-        #                 # first we cancel the offer
-        #                 # print('We are about to cancel an offer that we believe to be in the window with coords {}, we are at line 287'.format(runescape_window.bottom_right_corner))
-        #                 cancel_offer(ge_slot.top_left_corner)
-        #                 wait_for(gui.offer_canceled, ge_slot.runescape_instance)
-        #                 # print("Cancelled {} since the offer hasn't been updated in a while".format(ge_slot.item.item_name))
-        #                 handle_cancelling_sell(runescape_window, ge_slot, list_of_items_in_use)
-        #                 # we check if any of the item  bought and if so try to sell it
-        #                 # we could check the sale history to read the number of items bought and update accordingly
-        #                 # then if it was a sell we handle it
-        #                 # we would simply retrieve the items and money and update accordingly, then find the new sell price and sell
-        #                 break_check = True
-        #             elif time.time() - ge_slot.time_of_last_screenshot > 5400 and ge_slot.buy_or_sell == 'buy':
-        #                 print('Image of {} has not been updated in 1.5 hours so we are aborting the offer'.format(
-        #                     ge_slot.item.item_name))
-        #                 # run cancel offer code
-        #                 # first we cancel the offer
-        #                 # print('We are about to cancel an offer that we believe to be in the window with coords {}, we are at line 287'.format(runescape_window.bottom_right_corner))
-        #                 cancel_offer(ge_slot.top_left_corner)
-        #                 wait_for(gui.offer_canceled, ge_slot.runescape_instance)
-        #
-        #                 # print("Cancelled {} since the offer hasn't been updated in a while".format(ge_slot.item.item_name))
-        #                 handle_cancelling_buy(runescape_window, ge_slot, list_of_items_in_use)
-        #                 # we check if any of the item  bought and if so try to sell it
-        #                 # we could check the sale history to read the number of items bought and update accordingly
-        #                 # then if it was a sell we handle it
-        #                 # we would simply retrieve the items and money and update accordingly, then find the new sell price and sell
-        #                 break_check = True
-        #         if break_check:
-        #             break
-        #     if break_check:
-        #         break
-        #     # time_of_last_update_check = time.time()
-        #
-        # # Saves the state if we've been running long enough
-        # if time.time() - time_of_last_save > 60 or last_saved_list_of_runescape_windows != runescape_windows or last_saved_list_of_items_in_use != list_of_items_in_use or total_profit != previous_total_profit:
-        #     previous_total_profit = total_profit
-        #     last_saved_list_of_runescape_windows = runescape_windows
-        #     last_saved_list_of_items_in_use = list_of_items_in_use
-        #     time_of_last_save = time.time()
-        #     with (open("list_of_items_in_use.txt", "wb")) as openfile:
-        #         pickle.dump(list_of_items_in_use, (openfile))
-        #     with (open("runescape_windows.txt", "wb")) as openfile:
-        #         pickle.dump(runescape_windows, (openfile))
-        #     with (open("scored_items.txt", "wb")) as openfile:
-        #         pickle.dump(scored_items, (openfile))
-        #     with (open("time_of_last_save.txt", "wb")) as openfile:
-        #         pickle.dump(time_of_last_save, (openfile))
-        #     print('State has now been saved, you may be able to close the script and return from this point later')
-        #     print(
-        #         'Total profit made across all windows so far is {}. We have been running for {} minutes, this is a profit per hour of {}k per hour.'.format(
-        #             total_profit, int((time.time() - start_time) / 60),
-        #             int(3.6 * total_profit / (time.time() - start_time))))
-        #     time_of_last_save = time.time()
-        #     # print('Current scored item list {}'.format(scored_items))
-        # '''if total_profit != previous_total_profit:
-        #     previous_total_profit = total_profit
-        #     #label = myfont.render("Current Total Profit: {}".format(total_profit), 1, (255,255,0))
-        #     #game_display.blit(label, (10, 10))
-        #     #pygame.display.update()
-        #     print('Total profit made across all windows so far is {}. We have been running for {} minutes, this is a profit per hour of {}k per hour.'.format(total_profit, int((time.time()-start_time)/60), int(3.6*total_profit/(time.time()-start_time))))'''
+        in_process_offers = [ge_slot
+                             for instance in merchant.runescape_windows
+                             for ge_slot in instance.list_of_ge_slots
+                             if ge_slot.buy_or_sell is not None]
+
+        for ge_slot in in_process_offers:
+            # TODO: This feature needs a complete re-write & verification that it works
+            # Check if the old screenshot is the same as the current state
+            if not (ge_slot.image_of_slot == np.array(pyautogui.screenshot(
+                    region=(ge_slot.top_left_corner[0], ge_slot.top_left_corner[1] + 90, 165, 10)))).all():
+                ge_slot.set_image_of_slot()
+            elif datetime.datetime.now() - ge_slot.time_of_last_screenshot > 1800:
+                print('Image of {} has not been updated in 30 minutes so we are aborting the offer'.format(
+                    ge_slot.item.item_name))
+                # run cancel offer code
+                # first we cancel the offer
+                # print('We are about to cancel an offer that we believe to be in the window with coords {}, we are at line 287'.format(runescape_window.bottom_right_corner))
+                cancel_offer(ge_slot.top_left_corner)
+                wait_for(gui.offer_canceled, ge_slot.runescape_instance)
+                print("Cancelled {} since the offer hasn't been updated in a while".format(
+                    ge_slot.item.item_name))
+                # then if the item was a buy we handle it
+                if ge_slot.buy_or_sell == 'buy':
+                    handle_cancelling_buy(ge_slot.runescape_instance, ge_slot, ge_slot.runescape_instance.items_in_use)
+                elif ge_slot.buy_or_sell == 'sell':
+                    handle_cancelling_sell(ge_slot, ge_slot.runescape_instance.items_in_use)
+                # we check if any of the item  bought and if so try to sell it
+                # we could check the sale history to read the number of items bought and update accordingly
+                # then if it was a sell we handle it
+                # we would simply retrieve the items and money and update accordingly, then find the new sell price and sell
+                break_check = True
+            elif time.time() - ge_slot.time_of_last_screenshot > 3600 and ge_slot.buy_or_sell == 'sell':
+                print('Image of {} has not been updated in 1 hour so we are aborting the offer'.format(
+                    ge_slot.item.item_name))
+                # run cancel offer code
+                # first we cancel the offer
+                # print('We are about to cancel an offer that we believe to be in the window with coords {}, we are at line 287'.format(runescape_window.bottom_right_corner))
+                cancel_offer(ge_slot.top_left_corner)
+                wait_for(gui.offer_canceled, ge_slot.runescape_instance)
+                # print("Cancelled {} since the offer hasn't been updated in a while".format(ge_slot.item.item_name))
+                handle_cancelling_sell(ge_slot, ge_slot.runescape_instance.items_in_use)
+                # we check if any of the item  bought and if so try to sell it
+                # we could check the sale history to read the number of items bought and update accordingly
+                # then if it was a sell we handle it
+                # we would simply retrieve the items and money and update accordingly, then find the new sell price and sell
+                break_check = True
+            elif time.time() - ge_slot.time_of_last_screenshot > 5400 and ge_slot.buy_or_sell == 'buy':
+                print('Image of {} has not been updated in 1.5 hours so we are aborting the offer'.format(
+                    ge_slot.item.item_name))
+                # run cancel offer code
+                # first we cancel the offer
+                # print('We are about to cancel an offer that we believe to be in the window with coords {}, we are at line 287'.format(runescape_window.bottom_right_corner))
+                cancel_offer(ge_slot.top_left_corner)
+                wait_for(gui.offer_canceled, ge_slot.runescape_instance)
+
+                # print("Cancelled {} since the offer hasn't been updated in a while".format(ge_slot.item.item_name))
+                handle_cancelling_buy(ge_slot.runescape_instance, ge_slot, ge_slot.runescape_instance.items_in_use)
+                # we check if any of the item  bought and if so try to sell it
+                # we could check the sale history to read the number of items bought and update accordingly
+                # then if it was a sell we handle it
+                # we would simply retrieve the items and money and update accordingly, then find the new sell price and sell
+    #             break_check = True
+    #     if break_check:
+    #         break
+    # if break_check:
+    #     break
+    # time_of_last_update_check = time.time()
+    #
+    # # Saves the state if we've been running long enough
+    # if time.time() - time_of_last_save > 60 or last_saved_list_of_runescape_windows != runescape_windows or last_saved_list_of_items_in_use != list_of_items_in_use or total_profit != previous_total_profit:
+    #     previous_total_profit = total_profit
+    #     last_saved_list_of_runescape_windows = runescape_windows
+    #     last_saved_list_of_items_in_use = list_of_items_in_use
+    #     time_of_last_save = time.time()
+    #     with (open("list_of_items_in_use.txt", "wb")) as openfile:
+    #         pickle.dump(list_of_items_in_use, (openfile))
+    #     with (open("runescape_windows.txt", "wb")) as openfile:
+    #         pickle.dump(runescape_windows, (openfile))
+    #     with (open("scored_items.txt", "wb")) as openfile:
+    #         pickle.dump(scored_items, (openfile))
+    #     with (open("time_of_last_save.txt", "wb")) as openfile:
+    #         pickle.dump(time_of_last_save, (openfile))
+    #     print('State has now been saved, you may be able to close the script and return from this point later')
+    #     print(
+    #         'Total profit made across all windows so far is {}. We have been running for {} minutes, this is a profit per hour of {}k per hour.'.format(
+    #             total_profit, int((time.time() - start_time) / 60),
+    #             int(3.6 * total_profit / (time.time() - start_time))))
+    #     time_of_last_save = time.time()
+    #     # print('Current scored item list {}'.format(scored_items))
+    # '''if total_profit != previous_total_profit:
+    #     previous_total_profit = total_profit
+    #     #label = myfont.render("Current Total Profit: {}".format(total_profit), 1, (255,255,0))
+    #     #game_display.blit(label, (10, 10))
+    #     #pygame.display.update()
+    #     print('Total profit made across all windows so far is {}. We have been running for {} minutes, this is a profit per hour of {}k per hour.'.format(total_profit, int((time.time()-start_time)/60), int(3.6*total_profit/(time.time()-start_time))))'''
 
 
 def detect_runescape_windows(parent_script):
@@ -290,7 +266,6 @@ class Merchant:
         self.runescape_windows = None
         self.start_time = datetime.datetime.now()
         self.score_items = None
-        self.scored_items = {}
         self.time_last_save = datetime.datetime.now()
 
     def detect_windows(self):
@@ -301,31 +276,6 @@ class Merchant:
         else:
             print(f'We have detected {len(runescape_windows)} window(s)')
         self.runescape_windows = runescape_windows
-
-    def load_previous_scores(self):
-        try:
-            with (open("item_names_with_scores.txt", "rb")) as openfile:
-                self.scored_items = pickle.load(openfile)
-            self.score_items = True
-            print(self.scored_items)
-        except:
-            self.scored_items = {}
-            self.score_items = False
-            print("We couldn't find a save file for item scores so items will be picked randomly")
-
-    def set_default_scores(self):
-        f2p_and_p2p_items = items_to_merch_module.p2p_items() + items_to_merch_module.f2p_items()
-        [self.scored_items.setdefault(item, 500) for item in f2p_and_p2p_items if item not in self.scored_items.keys()]
-
-    def reset_negative_scores(self):
-        for item, score in self.scored_items.items():
-            if score < 1:
-                self.scored_items[item] = 100
-                print(f'{item} was a negative score so we have set it to 100')
-
-    def save_scores(self):
-        with (open("item_names_with_scores.txt", "wb")) as openfile:
-            pickle.dump(self.scored_items, openfile)
 
     def set_time_last_save(self):
         self.time_last_save = datetime.datetime.now()
@@ -338,7 +288,7 @@ class Merchant:
             print("No transaction found, new empty record created.")
 
     def save_transaction_record(self):
-        with (open("transaction_record.csv", "wb")) as openfile:
+        with (open("transaction_record.csv", "w")) as openfile:
             self.transaction_record.to_csv(openfile)
 
     def add_transaction(self, item, action, qty, price, score):
@@ -416,9 +366,7 @@ def buy_item(runescape_window, ge_slot):
     # Sometimes this will enter 1gp more or less to undercut/overcut and move items quickly
     ge_slot.enter_price(ge_slot.item.price_instant_sold_at)
 
-    print('Buying: {} At Price Each: {}'.format(
-        ge_slot.item.qty_available_to_buy() - 2,
-        round((runescape_window.money / ge_slot.item.price_instant_sold_at) / runescape_window.number_of_empty_ge_slots)), 2)
+    print(f'Buying: {ge_slot.item.item_name} At Price Each: {ge_slot.item.price_instant_sold_at}')
 
     ge_slot.item.set_quantity_to_buy(int(min(ge_slot.item.qty_available_to_buy() - 2, (
             runescape_window.money / ge_slot.item.price_instant_sold_at) / runescape_window.number_of_empty_ge_slots)))

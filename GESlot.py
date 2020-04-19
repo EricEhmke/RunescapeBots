@@ -35,18 +35,16 @@ def collect_items_from_ge_slot(ge_slot):
     #  One for checking price and another for collecting items
     # Open specific GE slot
     ge_slot.open_ge_slot()
-
     # Check the buy or sell price of the items
     price = check_price(ge_slot.loc_price)
     # TODO: Click these in a random or almost random order?
-    # TODO: Move this into the runescape_instance class?
     # Collect the gold
     is_slot_empty = pyautogui.locateOnScreen(gui.empty_collect_slot, region=ge_slot.runescape_instance.region)
+
     if is_slot_empty is None:
         ge_slot.collect_2()
 
     ge_slot.collect_1()
-
     wait_for(gui.view_all_offers, ge_slot.runescape_instance)
 
     return price

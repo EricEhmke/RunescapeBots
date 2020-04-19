@@ -106,7 +106,7 @@ class RunescapeWindow:
         self.list_of_ge_slots = initialise_ge_slots(self.top_left_corner, self.bottom_right_corner, self)
         # TODO: Fix the money detection
         # self.money = detect_money(self.top_left_corner, self.bottom_right_corner) TESSER NEEDS FIXING
-        self.money = 14_000
+        self.money = 100_000
         self.profit = 0
         self.time_of_last_break = datetime.datetime.now()
         # TODO: Change this to a simple left click or somthing According to authoer this is here just to make sure game doesn log out. Commented out just for testing
