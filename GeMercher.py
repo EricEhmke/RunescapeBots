@@ -22,7 +22,7 @@ def load_previous_items():
     try:
         with (open("list_of_items_in_use.txt", "rb")) as openfile:
             list_of_items_in_use = pickle.load(openfile)
-    except:
+    except IOError:
         list_of_items_in_use = []
 
     return list_of_items_in_use
@@ -54,7 +54,7 @@ def clear_completed_offers(runescape_windows, scores_valid):
                 ge_slot.item.set_score_invalid()
 
             if ge_slot.buy_or_sell == 'buy':
-                record_transaction(ge_slot=ge_slot, qty=ge_slot.item.quantity_to_buy, price=price, action=['Buy'])
+                record_transaction(ge_slot=ge_slot, qty=ge_slot.item.quantity_to_buy, price=price, action='Buy')
                 if ge_slot.item.is_aged() and ge_slot.item.qty_available_to_buy() > 0:
                     ge_slot.find_current_sell_price()
                 # sell our items at the price instant bought at
@@ -85,7 +85,7 @@ def fill_empty_slots(script):
                 empty_slots.append(ge_slot)
 
     if not empty_slots:
-        print('No empty GE slots found in all windows')
+        print('No empty GE slots found or no items available')
         return
 
     empty_slot = empty_slots[0]
@@ -140,8 +140,7 @@ def main():
 
     while True:
         print('Loop started')
-        total_profit = 0
-        completed_offer_check = False  # variable to see if there was a completed offer
+        # TODO: Is this clearing offers that completed during script downtime?
         clear_completed_offers(runescape_windows=merchant.runescape_windows, scores_valid=merchant.score_items)
         if not merchant.score_items:
             print('Loaded from save: Previous scores are being marked as invalid and will not effect ratings')
@@ -284,8 +283,8 @@ class Merchant:
         try:
             with (open("transaction_record.csv", "rb")) as openfile:
                 self.transaction_record = pd.read_csv(openfile)
-        except:
-            print("No transaction found, new empty record created.")
+        except IOError:
+            print("No prior transaction record found")
 
     def save_transaction_record(self):
         with (open("transaction_record.csv", "w")) as openfile:

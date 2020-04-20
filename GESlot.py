@@ -93,6 +93,7 @@ class GESlot:
         pyautogui.click()
         wait_for(gui.completed_offer, self.runescape_instance)
 
+    # TODO: Move these to the RunescapeWindow class
     @calc_break
     def confirm_offer(self):
         move_mouse_to_image_within_region(gui.confirm_offer, self.runescape_instance.region)
@@ -111,7 +112,7 @@ class GESlot:
     # TODO: find a better way to handle the region so this is not static
     @calc_break
     def enter_price(self, price):
-        move_mouse_to_image_within_region(gui.enter_price_box, region=(1158, 650, 221, 76))
+        move_mouse_to_image_within_region(gui.enter_price_box, region=(self.runescape_instance.region[0] + 243, self.runescape_instance.region[1] + 134, 221, 76))
         pyautogui.click()
         time.sleep(1 + random.random())
         random_typer(str(price))
@@ -121,7 +122,7 @@ class GESlot:
     # TODO: find a better way to handle the region so this is not static
     @calc_break
     def enter_quantity(self, quantity):
-        move_mouse_to_image_within_region(gui.enter_quantity_box, region=(936, 650, 221, 76))
+        move_mouse_to_image_within_region(gui.enter_quantity_box, region=(self.runescape_instance.region[0] + 22, self.runescape_instance.region[1] + 134, 221, 76))
         pyautogui.click()
         time.sleep(.5 + random.random())
         random_typer(str(quantity))

@@ -118,8 +118,8 @@ class RunescapeWindow:
         print('Initialised a window with {}Kgp and {} ge slots'.format(int(self.money / 1000),
                                                                        self.number_of_empty_ge_slots))
 
-        self.loc_inventory_item = (self.bottom_right_corner[0] + 950, self.bottom_right_corner[1] + 329), \
-                                  (self.bottom_right_corner[0] + 973, self.bottom_right_corner[1] + 349)
+        self.loc_inventory_item = (self.bottom_right_corner[0] + 64, self.bottom_right_corner[1] - 107), \
+                                  (self.bottom_right_corner[0] + 88, self.bottom_right_corner[1] - 84)
         self.loc_collection_box_gp = (self.bottom_right_corner[0] - 105, self.bottom_right_corner[1] - 51), \
                                      (self.bottom_right_corner[0] - 71, self.bottom_right_corner[1] - 21)
         self.loc_collection_box_item = (self.bottom_right_corner[0] - 55, self.bottom_right_corner[1] - 51), \
