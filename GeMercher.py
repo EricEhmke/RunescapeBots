@@ -8,7 +8,7 @@ import screenshots as gui
 import datetime
 import numpy as np
 
-from GESlot import record_transaction, collect_items_from_ge_slot
+from GESlot import record_transaction
 from RunescapeWindow import RunescapeWindow
 from utilities.utils import wait_for, move_mouse_to_image_within_region, random_typer, screengrab_as_numpy_array, \
     tesser_quantity_image
@@ -28,7 +28,7 @@ def load_previous_items():
     return list_of_items_in_use
 
 
-def find_slots_with_state(state_img, runescape_window):
+def find_slots_with_state_in_window(state_img, runescape_window):
     """
     Finds ge_slots in a window with a state matching the supplied screenshot
     :param state_img: A screenshot of the desired state
@@ -42,38 +42,6 @@ def find_slots_with_state(state_img, runescape_window):
         else:
             continue
     return None
-
-
-def clear_completed_offers(runescape_windows, scores_valid):
-    # TODO: This function is doing more than one thing
-    for runescape_window in runescape_windows:
-        for ge_slot in find_slots_with_state(gui.completed_ge_slot, runescape_window):
-            price = collect_items_from_ge_slot(ge_slot)
-            # mark score invalid if the offer completed outside of script runtime
-            if not scores_valid:
-                ge_slot.item.set_score_invalid()
-
-            if ge_slot.buy_or_sell == 'buy':
-                record_transaction(ge_slot=ge_slot, qty=ge_slot.item.quantity_to_buy, price=price, action='Buy')
-                if ge_slot.item.is_aged() and ge_slot.item.qty_available_to_buy() > 0:
-                    ge_slot.find_current_sell_price()
-                # sell our items at the price instant bought at
-                sell_items(ge_slot)
-
-            elif ge_slot.buy_or_sell == 'sell':
-                ge_slot.runescape_instance.update_money(
-                    ge_slot.runescape_instance.money +
-                    ((ge_slot.item.quantity_to_buy - 1) *
-                     ge_slot.item.price_instant_bought_at))
-                ge_slot.runescape_instance.update_profit(
-                    (ge_slot.item.quantity_to_buy - 2) *
-                    (ge_slot.item.price_instant_bought_at - ge_slot.item.price_instant_sold_at))
-                record_transaction(ge_slot=ge_slot, qty=ge_slot.item.quantity_to_buy, price=price, action='Sell')
-                print('Total profit made from this window is {}'.format(ge_slot.runescape_instance.profit))
-
-                # Reset GE slot of next transaction
-                ge_slot.reset_slot()
-
 
 def fill_empty_slots(script):
     # TODO: This function does more than one thing
@@ -130,22 +98,35 @@ def fill_empty_slots(script):
     empty_slot.set_image_of_slot()
 
 
+def ge_slot_image_is_current(ge_slot):
+    return (ge_slot.image_of_slot == np.array(pyautogui.screenshot(
+                    region=(ge_slot.top_left_corner[0], ge_slot.top_left_corner[1] + 90, 165, 10)))).all()
+
+
+def ge_slot_image_is_aged(ge_slot):
+    return datetime.datetime.now() - ge_slot.time_of_last_screenshot > 1800
+
+
+def detect_runescape_windows():
+    return [window for window in pyautogui.locateAllOnScreen(gui.main_ge_window)]
+
+
 def main():
     merchant = Merchant()
-    merchant.detect_windows()
+    merchant.initialize_windows()
     merchant.load_transaction_record()
 
-    previous_total_profit = None
     # TODO: Find better way to pickle whole state
 
     while True:
         print('Loop started')
-        # TODO: Is this clearing offers that completed during script downtime?
-        clear_completed_offers(runescape_windows=merchant.runescape_windows, scores_valid=merchant.score_items)
+        merchant.clear_completed_offers()
+
         if not merchant.score_items:
             print('Loaded from save: Previous scores are being marked as invalid and will not effect ratings')
             merchant.score_items = True
-        fill_empty_slots(script=merchant)
+
+        merchant.fill_empty_slots()
 
         # Check in process offers
         in_process_offers = [ge_slot
@@ -156,10 +137,9 @@ def main():
         for ge_slot in in_process_offers:
             # TODO: This feature needs a complete re-write & verification that it works
             # Check if the old screenshot is the same as the current state
-            if not (ge_slot.image_of_slot == np.array(pyautogui.screenshot(
-                    region=(ge_slot.top_left_corner[0], ge_slot.top_left_corner[1] + 90, 165, 10)))).all():
+            if not ge_slot_image_is_current(ge_slot):
                 ge_slot.set_image_of_slot()
-            elif datetime.datetime.now() - ge_slot.time_of_last_screenshot > 1800:
+            elif ge_slot_image_is_aged(ge_slot):
                 print('Image of {} has not been updated in 30 minutes so we are aborting the offer'.format(
                     ge_slot.item.item_name))
                 # run cancel offer code
@@ -245,36 +225,15 @@ def main():
     #     print('Total profit made across all windows so far is {}. We have been running for {} minutes, this is a profit per hour of {}k per hour.'.format(total_profit, int((time.time()-start_time)/60), int(3.6*total_profit/(time.time()-start_time))))'''
 
 
-def detect_runescape_windows(parent_script):
-    """
-    Detects the number of Runescape Windows on screen
-    :return: a list of Runescape Windows and their locations
-    """
-    list_of_runescape_windows = []
-    for i in pyautogui.locateAllOnScreen(gui.main_ge_window):
-        list_of_runescape_windows.append(
-            RunescapeWindow((i[0] + i[2], i[1] + i[3]), parent_script))
-    return list_of_runescape_windows
-
-
 class Merchant:
 
     def __init__(self):
 
         self.transaction_record = pd.DataFrame(columns=['Item', 'Timestamp', 'Action', 'Qty', 'Price', 'Msg', 'Score'])
-        self.runescape_windows = None
+        self.runescape_windows = []
         self.start_time = datetime.datetime.now()
         self.score_items = None
         self.time_last_save = datetime.datetime.now()
-
-    def detect_windows(self):
-        runescape_windows = detect_runescape_windows(self)
-        if not runescape_windows:
-            print("Could not detect a Runescape Window, script aborting")
-            quit()
-        else:
-            print(f'We have detected {len(runescape_windows)} window(s)')
-        self.runescape_windows = runescape_windows
 
     def set_time_last_save(self):
         self.time_last_save = datetime.datetime.now()
@@ -298,6 +257,147 @@ class Merchant:
              'Price': price,
              'Score': score}, ignore_index=True)
         self.save_transaction_record()
+
+    def attach_runescape_windows_to_class(self):
+        for window in detect_runescape_windows():
+            self.runescape_windows.append(RunescapeWindow((window[0] + window[2], window[1] + window[3]), self))
+
+    def check_for_windows(self):
+        """
+        Detects the number of Runescape Windows on screen
+        :return: a list of Runescape Windows and their locations
+        """
+        if self.runescape_windows:
+            print(f'We have detected {len(self.runescape_windows)} window(s)')
+        else:
+            print("Could not detect a Runescape Window, script aborting")
+            quit()
+
+    def initialize_windows(self):
+        self.attach_runescape_windows_to_class()
+        self.check_for_windows()
+
+    def clear_completed_offers(self):
+        # TODO: This function is doing more than one thing
+        for runescape_window in self.runescape_windows:
+            for ge_slot in find_slots_with_state_in_window(gui.completed_ge_slot, runescape_window):
+                price = ge_slot.collect_items_and_return_price()
+                # mark score invalid if the offer completed outside of script runtime
+                if not self.score_items:
+                    ge_slot.item.set_score_invalid()
+
+                if ge_slot.buy_or_sell == 'buy':
+                    record_transaction(ge_slot=ge_slot, qty=ge_slot.item.quantity_to_buy, price=price, action='Buy')
+                    if ge_slot.item.is_aged() and ge_slot.item.qty_available_to_buy() > 0:
+                        ge_slot.find_current_sell_price()
+                    # sell our items at the price instant bought at
+                    sell_items(ge_slot)
+
+                elif ge_slot.buy_or_sell == 'sell':
+                    ge_slot.runescape_instance.update_money(
+                        ge_slot.runescape_instance.money +
+                        ((ge_slot.item.quantity_to_buy - 1) *
+                         ge_slot.item.price_instant_bought_at))
+                    ge_slot.runescape_instance.update_profit(
+                        (ge_slot.item.quantity_to_buy - 2) *
+                        (ge_slot.item.price_instant_bought_at - ge_slot.item.price_instant_sold_at))
+                    record_transaction(ge_slot=ge_slot, qty=ge_slot.item.quantity_to_buy, price=price, action='Sell')
+                    print('Total profit made from this window is {}'.format(ge_slot.runescape_instance.profit))
+
+                    # Reset GE slot of next transaction
+                    ge_slot.reset_slot()
+
+    def fill_empty_slots(self):
+        # TODO: This function does more than one thing
+        # IF I have a pickled file I should verify whether its good or not
+        empty_slots = []
+        for instance in sorted(self.runescape_windows, key=operator.attrgetter('money')):
+            for ge_slot in instance.list_of_ge_slots:
+                if ge_slot.buy_or_sell is None and ge_slot.runescape_instance.items_available():
+                    empty_slots.append(ge_slot)
+
+        if not empty_slots:
+            print('No empty GE slots found or no items available')
+            return
+
+        empty_slot = empty_slots[0]
+
+        # If item is_aged() & score < 0 then reset score to 0 and see if its profitable?
+
+        top_item = max(empty_slot.runescape_instance.items_available(), key=operator.methodcaller('score'))
+
+        print(f'Top scored item is {top_item.item_name}')
+        # I have picked a scored item, now I need to reference the instance of that item in the Runescape Window
+        empty_slot.set_item_in_ge_slot(top_item)
+
+        # Find the current sell price for the item chosen
+        wait_for(gui.buy_bag, empty_slot)
+        if empty_slot.item.is_aged():
+            # TODO: Refactor these functions so that they return the price and not set it to the item property
+            empty_slot.find_current_sell_price()
+            wait_for(gui.sell_bag, empty_slot)
+            empty_slot.find_current_buy_price()
+
+            # If this item is profitable, set prices for instant buy and sell
+
+            if empty_slot.item.meets_profit_threshold():
+                temp = empty_slot.item.price_instant_bought_at
+                empty_slot.item.set_price_instant_bought_at(empty_slot.item.price_instant_sold_at)
+                empty_slot.item.set_price_instant_sold_at(temp)
+
+                # If this item has more than 5gp margin then undercut for faster sales
+                if empty_slot.item.price_instant_bought_at - empty_slot.item.price_instant_sold_at > 5:
+                    empty_slot.item.set_price_instant_bought_at(empty_slot.item.price_instant_bought_at - 1)
+                    empty_slot.item.set_price_instant_sold_at(empty_slot.item.price_instant_sold_at + 1)
+
+            else:
+                print('Item does not meet profitability threshold, returning')
+                return
+
+        # Buy the item and set the image for the slot.
+        empty_slot.item.set_score_valid()
+        wait_for(gui.buy_bag, empty_slot)
+        buy_item(empty_slot.runescape_instance, empty_slot)
+        wait_for(gui.view_all_offers, empty_slot.runescape_instance)
+        empty_slot.set_image_of_slot()
+
+
+def find_current_buy_price(ge_slot):
+    ge_slot.runescape_instance.select_sell_bag()
+    wait_for(gui.sell_offer, ge_slot.runescape_instance)
+    ge_slot.runescape_instance.select_inventory_item()
+    price = 1
+    ge_slot.enter_price(price)
+    ge_slot.confirm_offer()
+    ge_slot.update_buy_or_sell_state('buy')
+    wait_for(gui.view_all_offers, ge_slot.runescape_instance)
+    price = ge_slot.collect_items_and_return_price()
+    ge_slot.update_buy_or_sell_state(None)
+    wait_for(gui.view_all_offers, ge_slot.runescape_instance)
+    record_transaction(ge_slot=ge_slot, qty=1, price=price, action="Find_Buy")
+    ge_slot.item.set_time_of_last_pc()
+    ge_slot.item.set_price_instant_bought_at(price)
+    print('Current buy price for {} is {} gp'.format(ge_slot.item.item_name, price))
+
+
+def find_current_sell_price(ge_slot):
+    ge_slot.runescape_instance.select_buy_bag()
+    wait_for(gui.buy_prompt, ge_slot.runescape_instance)
+    random_typer(str(ge_slot.item.item_name))
+    wait_for(ge_slot.item.image_in_ge_search, ge_slot.runescape_instance.region)
+    move_mouse_to_image_within_region(ge_slot.item.image_in_ge_search)
+    pyautogui.click()
+    ge_slot.runescape_instance.enter_price(1000)
+    ge_slot.runescape_instance.confirm_offer()
+    ge_slot.update_buy_or_sell_state('sell')
+    wait_for(gui.view_all_offers, ge_slot.runescape_instance)
+    price = ge_slot.collect_items_and_return_price()
+    ge_slot.update_buy_or_sell_state(None)
+    wait_for(gui.view_all_offers, ge_slot.runescape_instance)
+    record_transaction(ge_slot=ge_slot, qty=1, price=price, action='Find_Sell')
+    ge_slot.item.set_time_of_last_pc()
+    ge_slot.item.set_price_instant_sold_at(price)
+    print('Current sell price for {} is {} gp'.format(ge_slot.item.item_name, price))
 
 
 def handle_cancelling_sell(ge_slot, list_of_items_in_use):

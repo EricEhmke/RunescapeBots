@@ -1,6 +1,9 @@
 import datetime
+from random import random
+
 import pyautogui
 import screenshots as gui
+import time
 
 from GESlot import GESlot
 from Custom_Modules import items_to_merch_module
@@ -8,19 +11,8 @@ from Custom_Modules import gelimitfinder
 from item import Item
 from Custom_Modules import pointfrombox
 from Custom_Modules.realmouse import move_mouse_to
-from utilities.utils import calc_break, tesser_money_image, tesser_price_image, screengrab_as_numpy_array
-
-
-def detect_runescape_windows(parent_script):
-    """
-    Detects the number of Runescape Windows on screen
-    :return: a list of Runescape Windows and their locations
-    """
-    list_of_runescape_windows = []
-    for i in pyautogui.locateAllOnScreen(gui.main_ge_window):
-        list_of_runescape_windows.append(
-            RunescapeWindow((i[0] + i[2], i[1] + i[3]), parent_script))
-    return list_of_runescape_windows
+from utilities.utils import calc_break, tesser_money_image, tesser_price_image, screengrab_as_numpy_array, \
+    move_mouse_to_image_within_region, random_typer, wait_for
 
 
 @calc_break
@@ -54,9 +46,8 @@ def items_to_merch(member_status, runescape_instance):
 
 
 def count_ge_slots(top_left_corner, bottom_right_corner):
-    width = bottom_right_corner[0] - top_left_corner[0]
-    height = bottom_right_corner[1] - top_left_corner[1]
-    # Commenting out the region arg for testing
+    width = abs(bottom_right_corner[0] - top_left_corner[0])
+    height = abs(bottom_right_corner[1] - top_left_corner[1])
     list_of_ge_slots = list(
         pyautogui.locateAllOnScreen(gui.ge_open_slot, region=(top_left_corner[0], top_left_corner[1], width, height),
                                     confidence=0.9))
@@ -92,14 +83,12 @@ def detect_money(top_left_corner, bottom_right_corner):
 
 
 class RunescapeWindow:
-    # TODO: This class should be split in 2. 1 for GE related things and 1 for the RS window
+
     def __init__(self, position, parent_script):
         self.bottom_right_corner = position
-        # I am leaving these numbers hard coded for 1440p until I find another solution
         self.top_left_corner = (position[0] - 482, position[1] - 304)
         self.region = (self.top_left_corner[0], self.top_left_corner[1], 484, 303)
         self.member_status = True
-        # TODO: Move this to the GE slot class
         self.loc_price = (self.bottom_right_corner[0] - 396, self.bottom_right_corner[1] - 61), \
                          (self.bottom_right_corner[0] - 179, self.bottom_right_corner[1] - 28)
 
@@ -109,8 +98,6 @@ class RunescapeWindow:
         self.money = 100_000
         self.profit = 0
         self.time_of_last_break = datetime.datetime.now()
-        # TODO: Change this to a simple left click or somthing According to authoer this is here just to make sure game doesn log out. Commented out just for testing
-        # examine_money(position)
         self.items_to_merch = items_to_merch(self.member_status, self)
         self.number_of_empty_ge_slots = empty_ge_slot_check(self.list_of_ge_slots)
         self.items_in_use = [ge_slot.item for ge_slot in self.list_of_ge_slots]
@@ -148,3 +135,57 @@ class RunescapeWindow:
                 item.current_state is None
                 and
                 (item.meets_profit_threshold() or item.is_aged())]
+
+    @calc_break
+    def enter_price(self, price):
+        move_mouse_to_image_within_region(gui.enter_price_box, region=(
+            self.region[0] + 243, self.region[1] + 134, 221, 76))
+        pyautogui.click()
+        time.sleep(1 + random.random())
+        random_typer(str(price))
+        time.sleep(random.random() + .25)
+        pyautogui.press('enter')
+
+    # TODO: find a better way to handle the region so this is not static
+    @calc_break
+    def enter_quantity(self, quantity):
+        move_mouse_to_image_within_region(gui.enter_quantity_box, region=(
+            self.region[0] + 22, self.region[1] + 134, 221, 76))
+        pyautogui.click()
+        time.sleep(.5 + random.random())
+        random_typer(str(quantity))
+        time.sleep(random.random() + .25)
+        pyautogui.press('enter')
+
+    @calc_break
+    def collect_1(self):
+        top_left, bottom_right = pointfrombox.random_point(*self.loc_collection_box_gp)
+        move_mouse_to(top_left, bottom_right)
+        pyautogui.click()
+
+    @calc_break
+    def collect_2(self):
+        top_left, bottom_right = pointfrombox.random_point(*self.loc_collection_box_item)
+        move_mouse_to(top_left, bottom_right)
+        pyautogui.click()
+
+    @calc_break
+    def confirm_offer(self):
+        move_mouse_to_image_within_region(gui.confirm_offer, self.region)
+        pyautogui.click()
+
+    @calc_break
+    def open_ge_slot(self, ge_slot):
+        move_mouse_to(*ge_slot.location())
+        pyautogui.click()
+        wait_for(gui.completed_offer, self)
+
+    @calc_break
+    def select_buy_bag(self, ge_slot):
+        move_mouse_to_image_within_region(gui.buy_bag, ge_slot.region)
+        pyautogui.click()
+
+    @calc_break
+    def select_sell_bag(self, ge_slot):
+        move_mouse_to_image_within_region(gui.sell_bag, ge_slot.region)
+        pyautogui.click()
