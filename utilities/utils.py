@@ -7,8 +7,24 @@ import pytesseract
 import re
 import pyautogui
 import PIL
+import matplotlib as plt
 
 from Custom_Modules.realmouse import move_mouse_to
+
+
+def get_image_of_region(region):
+    return np.array(pyautogui.screenshot(region=region))
+
+def calc_score(qty, price, time_order_placed):
+    return (qty * price) / (datetime.datetime.now() - time_order_placed).seconds
+
+
+# TODO: This can probably be refined to make it static or a class method
+def record_transaction(ge_slot, qty, price, action, score=np.nan):
+    if action in ['Sell']:
+        score = calc_score(qty=qty, price=price, time_order_placed=ge_slot.item.time_buy_order_placed)
+    ge_slot.runescape_instance.GEMerch.add_transaction(
+        item=ge_slot.item, action=action, qty=qty, price=price, score=score)
 
 
 def tesser_money_image(image):
@@ -102,8 +118,11 @@ def box_to_region(top_left_corner, bottom_right_corner):
     :param bottom_right_corner: coordinates of the top left corner of a box
     :return: a pyautogui region
     """
-    return top_left_corner[0], top_left_corner[1], bottom_right_corner[0] - top_left_corner[0], \
-           bottom_right_corner[1] - top_left_corner[1]
+    left = top_left_corner[0]
+    top = top_left_corner[1]
+    width = bottom_right_corner[0] - top_left_corner[0]
+    height = bottom_right_corner[1] - top_left_corner[1]
+    return left, top, width, height
 
 
 def check_price(location):
@@ -112,7 +131,8 @@ def check_price(location):
     :param location: X, Y coords of the upper right and lower left hand corners of the area to be read
     :return: int
     """
-    price = tesser_price_image(screengrab_as_numpy_array(location))
+    numpy_array = screengrab_as_numpy_array(location)
+    price = tesser_price_image(numpy_array)
     return price
 
 
@@ -146,10 +166,11 @@ def screengrab_as_numpy_array(location):
     :param location: x,y location points of bottom left and top right corners of an area on screen
     :return: numpy.array
     """
-    top_left, bottom_right = location
-    width = top_left[0] - top_left[1]
-    height = bottom_right[1] - top_left[1]
-    im = np.array(pyautogui.screenshot(region=(top_left[0], top_left[1], width, height)))
+    # top_left, bottom_right = location
+    # width = top_left[0] - top_left[1]
+    # height = bottom_right[1] - top_left[1]
+    region = box_to_region(*location)
+    im = np.array(pyautogui.screenshot(region=region))
     return im
 
 

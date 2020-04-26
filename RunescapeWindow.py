@@ -1,5 +1,5 @@
 import datetime
-from random import random
+import random
 
 import pyautogui
 import screenshots as gui
@@ -12,74 +12,7 @@ from item import Item
 from Custom_Modules import pointfrombox
 from Custom_Modules.realmouse import move_mouse_to
 from utilities.utils import calc_break, tesser_money_image, tesser_price_image, screengrab_as_numpy_array, \
-    move_mouse_to_image_within_region, random_typer, wait_for
-
-
-@calc_break
-def prevent_logout(top_left_corner, bottom_right_corner, runescape_window):
-    # TODO: Rewrite this to simple right click at a random point.
-    pass
-
-
-def items_to_merch(member_status, runescape_instance):
-    if member_status:
-        items_to_merch = []
-        # below is a list of members items to merch
-        list_of_items = items_to_merch_module.p2p_items()
-        list_of_item_limits = gelimitfinder.find_ge_limit(list_of_items)
-        for i in range(len(list_of_item_limits)):
-            list_of_item_limits[i] -= 1
-        for i in range(len(list_of_items)):
-            items_to_merch.append(Item(list_of_items[i], list_of_item_limits[i], runescape_instance))
-        # we are a member so initialise a members item list
-    else:
-        items_to_merch = []
-        # below is a list of f2p items to merch
-        list_of_items = items_to_merch_module.f2p_items()
-        list_of_item_limits = gelimitfinder.find_ge_limit(list_of_items)
-        for i in range(len(list_of_item_limits)):
-            list_of_item_limits[i] -= 1
-        for i in range(len(list_of_items)):
-            items_to_merch.append(Item(list_of_items[i], list_of_item_limits[i], runescape_instance))
-        # we are f2p so initialise a f2p item list
-    return items_to_merch
-
-
-def count_ge_slots(top_left_corner, bottom_right_corner):
-    width = abs(bottom_right_corner[0] - top_left_corner[0])
-    height = abs(bottom_right_corner[1] - top_left_corner[1])
-    list_of_ge_slots = list(
-        pyautogui.locateAllOnScreen(gui.ge_open_slot, region=(top_left_corner[0], top_left_corner[1], width, height),
-                                    confidence=0.9))
-
-    return list_of_ge_slots
-
-
-def empty_ge_slot_check(list_of_ge_slots):
-    number_of_ge_slots_open = 0
-    for slot in list_of_ge_slots:
-        if slot.buy_or_sell is None:
-            number_of_ge_slots_open += 1
-    return number_of_ge_slots_open
-
-
-def initialise_ge_slots(top_left_corner, bottom_right_corner, runescape_window):
-    ge_slots = []
-    for i in count_ge_slots(top_left_corner, bottom_right_corner):
-        ge_slots.append(GESlot(((i[0], i[1]), (i[0] + i[2], i[1] + i[3])), runescape_window))
-    return ge_slots
-
-
-def detect_money(top_left_corner, bottom_right_corner):
-    # TODO: Update this screenshot. Function currently unused.
-    money_icon_path = 'Tools/screenshots/money_icon.png'
-    money_icon_loc = pyautogui.locateOnScreen(money_icon_path, region=(
-        top_left_corner[0], top_left_corner[1], bottom_right_corner[0] - top_left_corner[0],
-        bottom_right_corner[1] - top_left_corner[1]))
-    money_val_loc = (money_icon_loc[0] + 22, money_icon_loc[1], money_icon_loc[0] + 100, money_icon_loc[1] + 18)
-    image = screengrab_as_numpy_array(money_val_loc)
-    money_val = tesser_money_image(image)
-    return money_val
+    move_mouse_to_image_within_region, random_typer, wait_for, check_price
 
 
 class RunescapeWindow:
@@ -134,7 +67,7 @@ class RunescapeWindow:
                 and
                 item.current_state is None
                 and
-                (item.meets_profit_threshold() or item.is_aged())]
+                (item.meets_profit_threshold() or item.price_is_outdated())]
 
     @calc_break
     def enter_price(self, price):
@@ -189,3 +122,91 @@ class RunescapeWindow:
     def select_sell_bag(self, ge_slot):
         move_mouse_to_image_within_region(gui.sell_bag, ge_slot.region)
         pyautogui.click()
+
+    def collect_items_and_return_price(self, ge_slot):
+        self.open_ge_slot(ge_slot)
+        price = check_price(self.loc_price)
+
+        if item_in_slot(self.region):
+            self.collect_2()
+
+        self.collect_1()
+        wait_for(gui.view_all_offers, self)
+
+        return price
+
+
+def item_in_slot(slot_region):
+    # TODO: Need to verify the region is correct
+    if pyautogui.locateOnScreen(gui.empty_collect_slot, region=slot_region) is None:
+        return True
+    return False
+
+
+@calc_break
+def prevent_logout(top_left_corner, bottom_right_corner, runescape_window):
+    # TODO: Rewrite this to simple right click at a random point.
+    pass
+
+
+def items_to_merch(member_status, runescape_instance):
+    if member_status:
+        items_to_merch = []
+        # below is a list of members items to merch
+        list_of_items = items_to_merch_module.p2p_items()
+        list_of_item_limits = gelimitfinder.find_ge_limit(list_of_items)
+        for i in range(len(list_of_item_limits)):
+            list_of_item_limits[i] -= 1
+        for i in range(len(list_of_items)):
+            items_to_merch.append(Item(list_of_items[i], list_of_item_limits[i], runescape_instance))
+        # we are a member so initialise a members item list
+    else:
+        items_to_merch = []
+        # below is a list of f2p items to merch
+        list_of_items = items_to_merch_module.f2p_items()
+        list_of_item_limits = gelimitfinder.find_ge_limit(list_of_items)
+        for i in range(len(list_of_item_limits)):
+            list_of_item_limits[i] -= 1
+        for i in range(len(list_of_items)):
+            items_to_merch.append(Item(list_of_items[i], list_of_item_limits[i], runescape_instance))
+        # we are f2p so initialise a f2p item list
+    return items_to_merch
+
+
+def count_ge_slots(top_left_corner, bottom_right_corner):
+    width = abs(bottom_right_corner[0] - top_left_corner[0])
+    height = abs(bottom_right_corner[1] - top_left_corner[1])
+    list_of_ge_slots = list(
+        pyautogui.locateAllOnScreen(gui.ge_open_slot, region=(top_left_corner[0], top_left_corner[1], width, height),
+                                    confidence=0.9))
+
+    return list_of_ge_slots
+
+
+def empty_ge_slot_check(list_of_ge_slots):
+    number_of_ge_slots_open = 0
+    for slot in list_of_ge_slots:
+        if slot.buy_or_sell is None:
+            number_of_ge_slots_open += 1
+    return number_of_ge_slots_open
+
+
+def initialise_ge_slots(top_left_corner, bottom_right_corner, runescape_window):
+    ge_slots = []
+    for found_slot_region in count_ge_slots(top_left_corner, bottom_right_corner):
+        ge_slots.append(GESlot(region=found_slot_region, runescape_instance=runescape_window))
+    return ge_slots
+
+
+def detect_money(top_left_corner, bottom_right_corner):
+    # TODO: Update this screenshot. Function currently unused.
+    money_icon_path = 'Tools/screenshots/money_icon.png'
+    money_icon_loc = pyautogui.locateOnScreen(money_icon_path, region=(
+        top_left_corner[0], top_left_corner[1], bottom_right_corner[0] - top_left_corner[0],
+        bottom_right_corner[1] - top_left_corner[1]))
+    money_val_loc = (money_icon_loc[0] + 22, money_icon_loc[1], money_icon_loc[0] + 100, money_icon_loc[1] + 18)
+    image = screengrab_as_numpy_array(money_val_loc)
+    money_val = tesser_money_image(image)
+    return money_val
+
+

@@ -8,10 +8,10 @@ import screenshots as gui
 import datetime
 import numpy as np
 
-from GESlot import record_transaction
+
 from RunescapeWindow import RunescapeWindow
 from utilities.utils import wait_for, move_mouse_to_image_within_region, random_typer, screengrab_as_numpy_array, \
-    tesser_quantity_image
+    tesser_quantity_image, record_transaction
 
 
 def load_previous_items():
@@ -43,6 +43,7 @@ def find_slots_with_state_in_window(state_img, runescape_window):
             continue
     return None
 
+
 def fill_empty_slots(script):
     # TODO: This function does more than one thing
     # IF I have a pickled file I should verify whether its good or not
@@ -58,7 +59,7 @@ def fill_empty_slots(script):
 
     empty_slot = empty_slots[0]
 
-    # If item is_aged() & score < 0 then reset score to 0 and see if its profitable?
+    # If item price_is_outdated() & score < 0 then reset score to 0 and see if its profitable?
 
     top_item = max(empty_slot.runescape_instance.items_available(), key=operator.methodcaller('score'))
 
@@ -68,34 +69,34 @@ def fill_empty_slots(script):
 
     # Find the current sell price for the item chosen
     wait_for(gui.buy_bag, empty_slot)
-    if empty_slot.item.is_aged():
+    if top_item.price_is_outdated():
         # TODO: Refactor these functions so that they return the price and not set it to the item property
-        empty_slot.find_current_sell_price()
-        wait_for(gui.sell_bag, empty_slot)
-        empty_slot.find_current_buy_price()
+        top_item.find_current_sell_price()
+        wait_for(gui.sell_bag, top_item.ge_slot)
+        top_item.find_current_buy_price()
 
         # If this item is profitable, set prices for instant buy and sell
 
-        if empty_slot.item.meets_profit_threshold():
-            temp = empty_slot.item.price_instant_bought_at
-            empty_slot.item.set_price_instant_bought_at(empty_slot.item.price_instant_sold_at)
-            empty_slot.item.set_price_instant_sold_at(temp)
+        if top_item.meets_profit_threshold():
+            temp = top_item.price_instant_bought_at
+            top_item.set_price_instant_bought_at(top_item.price_instant_sold_at)
+            top_item.set_price_instant_sold_at(temp)
 
             # If this item has more than 5gp margin then undercut for faster sales
-            if empty_slot.item.price_instant_bought_at - empty_slot.item.price_instant_sold_at > 5:
-                empty_slot.item.set_price_instant_bought_at(empty_slot.item.price_instant_bought_at - 1)
-                empty_slot.item.set_price_instant_sold_at(empty_slot.item.price_instant_sold_at + 1)
+            if top_item.price_instant_bought_at - top_item.price_instant_sold_at > 5:
+                top_item.set_price_instant_bought_at(top_item.price_instant_bought_at - 1)
+                top_item.set_price_instant_sold_at(top_item.price_instant_sold_at + 1)
 
         else:
             print('Item does not meet profitability threshold, returning')
             return
 
     # Buy the item and set the image for the slot.
-    empty_slot.item.set_score_valid()
-    wait_for(gui.buy_bag, empty_slot)
-    buy_item(empty_slot.runescape_instance, empty_slot)
-    wait_for(gui.view_all_offers, empty_slot.runescape_instance)
-    empty_slot.set_image_of_slot()
+    top_item.set_score_valid()
+    wait_for(gui.buy_bag, top_item.ge_slot)
+    top_item.buy_item()
+    wait_for(gui.view_all_offers, top_item.runescape_instance)
+    top_item.ge_slot.set_image_of_slot()
 
 
 def ge_slot_image_is_current(ge_slot):
@@ -288,7 +289,7 @@ class Merchant:
 
                 if ge_slot.buy_or_sell == 'buy':
                     record_transaction(ge_slot=ge_slot, qty=ge_slot.item.quantity_to_buy, price=price, action='Buy')
-                    if ge_slot.item.is_aged() and ge_slot.item.qty_available_to_buy() > 0:
+                    if ge_slot.item.price_is_outdated() and ge_slot.item.qty_available_to_buy() > 0:
                         ge_slot.find_current_sell_price()
                     # sell our items at the price instant bought at
                     sell_items(ge_slot)
@@ -322,7 +323,7 @@ class Merchant:
 
         empty_slot = empty_slots[0]
 
-        # If item is_aged() & score < 0 then reset score to 0 and see if its profitable?
+        # If item price_is_outdated() & score < 0 then reset score to 0 and see if its profitable?
 
         top_item = max(empty_slot.runescape_instance.items_available(), key=operator.methodcaller('score'))
 
@@ -332,72 +333,35 @@ class Merchant:
 
         # Find the current sell price for the item chosen
         wait_for(gui.buy_bag, empty_slot)
-        if empty_slot.item.is_aged():
+        if top_item.price_is_outdated():
             # TODO: Refactor these functions so that they return the price and not set it to the item property
-            empty_slot.find_current_sell_price()
+            top_item.find_current_sell_price()
             wait_for(gui.sell_bag, empty_slot)
-            empty_slot.find_current_buy_price()
+            top_item.find_current_buy_price()
 
             # If this item is profitable, set prices for instant buy and sell
 
-            if empty_slot.item.meets_profit_threshold():
-                temp = empty_slot.item.price_instant_bought_at
-                empty_slot.item.set_price_instant_bought_at(empty_slot.item.price_instant_sold_at)
-                empty_slot.item.set_price_instant_sold_at(temp)
+            if top_item.meets_profit_threshold():
+                temp = top_item.price_instant_bought_at
+                top_item.set_price_instant_bought_at(top_item.price_instant_sold_at)
+                top_item.set_price_instant_sold_at(temp)
 
                 # If this item has more than 5gp margin then undercut for faster sales
-                if empty_slot.item.price_instant_bought_at - empty_slot.item.price_instant_sold_at > 5:
-                    empty_slot.item.set_price_instant_bought_at(empty_slot.item.price_instant_bought_at - 1)
-                    empty_slot.item.set_price_instant_sold_at(empty_slot.item.price_instant_sold_at + 1)
+                if top_item.price_instant_bought_at - top_item.price_instant_sold_at > 5:
+                    top_item.set_price_instant_bought_at(top_item.price_instant_bought_at - 1)
+                    top_item.set_price_instant_sold_at(top_item.price_instant_sold_at + 1)
 
             else:
                 print('Item does not meet profitability threshold, returning')
                 return
 
         # Buy the item and set the image for the slot.
-        empty_slot.item.set_score_valid()
+        top_item.set_score_valid()
         wait_for(gui.buy_bag, empty_slot)
+        # TODO: Move these to the item class
         buy_item(empty_slot.runescape_instance, empty_slot)
         wait_for(gui.view_all_offers, empty_slot.runescape_instance)
         empty_slot.set_image_of_slot()
-
-
-def find_current_buy_price(ge_slot):
-    ge_slot.runescape_instance.select_sell_bag()
-    wait_for(gui.sell_offer, ge_slot.runescape_instance)
-    ge_slot.runescape_instance.select_inventory_item()
-    price = 1
-    ge_slot.enter_price(price)
-    ge_slot.confirm_offer()
-    ge_slot.update_buy_or_sell_state('buy')
-    wait_for(gui.view_all_offers, ge_slot.runescape_instance)
-    price = ge_slot.collect_items_and_return_price()
-    ge_slot.update_buy_or_sell_state(None)
-    wait_for(gui.view_all_offers, ge_slot.runescape_instance)
-    record_transaction(ge_slot=ge_slot, qty=1, price=price, action="Find_Buy")
-    ge_slot.item.set_time_of_last_pc()
-    ge_slot.item.set_price_instant_bought_at(price)
-    print('Current buy price for {} is {} gp'.format(ge_slot.item.item_name, price))
-
-
-def find_current_sell_price(ge_slot):
-    ge_slot.runescape_instance.select_buy_bag()
-    wait_for(gui.buy_prompt, ge_slot.runescape_instance)
-    random_typer(str(ge_slot.item.item_name))
-    wait_for(ge_slot.item.image_in_ge_search, ge_slot.runescape_instance.region)
-    move_mouse_to_image_within_region(ge_slot.item.image_in_ge_search)
-    pyautogui.click()
-    ge_slot.runescape_instance.enter_price(1000)
-    ge_slot.runescape_instance.confirm_offer()
-    ge_slot.update_buy_or_sell_state('sell')
-    wait_for(gui.view_all_offers, ge_slot.runescape_instance)
-    price = ge_slot.collect_items_and_return_price()
-    ge_slot.update_buy_or_sell_state(None)
-    wait_for(gui.view_all_offers, ge_slot.runescape_instance)
-    record_transaction(ge_slot=ge_slot, qty=1, price=price, action='Find_Sell')
-    ge_slot.item.set_time_of_last_pc()
-    ge_slot.item.set_price_instant_sold_at(price)
-    print('Current sell price for {} is {} gp'.format(ge_slot.item.item_name, price))
 
 
 def handle_cancelling_sell(ge_slot, list_of_items_in_use):
@@ -418,9 +382,17 @@ def handle_cancelling_sell(ge_slot, list_of_items_in_use):
 
 
 def handle_cancelling_buy(runescape_window, ge_slot, list_of_items_in_use):
-    # TODO: Rewrite or delete
+    """
+    Handles a cancelled buy order.
+    :param runescape_window:
+    :param ge_slot:
+    :param list_of_items_in_use:
+    :return:
+    """
+    # Collects money from items not already bought
     ge_slot.collect_1()
 
+    # If some items got bought, collect and sell them if we aren't at limit
     if not len(list(pyautogui.locateAllOnScreen(gui.view_all_offers, region=ge_slot.runescape_instance.region))) > 0:
         # we have to click box 2 still so click it and handle it
         ge_slot.collect_2()
@@ -432,7 +404,8 @@ def handle_cancelling_buy(runescape_window, ge_slot, list_of_items_in_use):
             ge_slot.item.set_price_instant_bought_at(ge_slot.item.price_instant_bought_at - 1)
         sell_items(ge_slot, record_number_selling=True)
         return ()
-    # item didnt buy any of so we can just mark this slot as open and start again
+
+    # If no items bought at all just mark the slot as open and return money to the pool
     runescape_window.update_money(
         runescape_window.money + ((ge_slot.item.quantity_to_buy - 2) * ge_slot.item.price_instant_sold_at))
     ge_slot.update_buy_or_sell_state(None)
@@ -452,7 +425,7 @@ def cancel_offer(ge_slot):
 
 def buy_item(runescape_window, ge_slot):
     # click the correct buy bag
-    ge_slot.select_buy_bag()
+    runescape_window.select_buy_bag()
     wait_for(gui.buy_prompt, runescape_window)
 
     random_typer(str(ge_slot.item.item_name))
@@ -463,7 +436,7 @@ def buy_item(runescape_window, ge_slot):
     pyautogui.click()
 
     # Sometimes this will enter 1gp more or less to undercut/overcut and move items quickly
-    ge_slot.enter_price(ge_slot.item.price_instant_sold_at)
+    runescape_window.enter_price(ge_slot.item.price_instant_sold_at)
 
     print(f'Buying: {ge_slot.item.item_name} At Price Each: {ge_slot.item.price_instant_sold_at}')
 
@@ -473,10 +446,10 @@ def buy_item(runescape_window, ge_slot):
     runescape_window.update_money(
         runescape_window.money - (ge_slot.item.quantity_to_buy * ge_slot.item.price_instant_sold_at))
 
-    ge_slot.enter_quantity(ge_slot.item.quantity_to_buy)
+    runescape_window.enter_quantity(ge_slot.item.quantity_to_buy)
 
     # click confirm off
-    ge_slot.confirm_offer()
+    runescape_window.confirm_offer()
     ge_slot.item.set_time_item_buy_was_placed()
     wait_for(gui.view_all_offers, runescape_window)
     # update states accordingly
@@ -488,14 +461,14 @@ def buy_item(runescape_window, ge_slot):
     ge_slot.set_image_of_slot()
 
 
-def sell_items(ge_slot, record_number_selling=False):
+def sell_items(runescape_instance, ge_slot, record_number_selling=False):
     # click correct sell bag
     # TODO: Finish refactoring this func
-    ge_slot.select_sell_bag()
+    ge_slot.runescape_instance.select_sell_bag()
 
     wait_for(gui.sell_offer, ge_slot.runescape_instance.region)
     # click item in inv
-    ge_slot.select_inventory_item()
+    ge_slot.runescape_instance.select_inventory_item()
 
     if record_number_selling:
         try:
@@ -519,8 +492,8 @@ def sell_items(ge_slot, record_number_selling=False):
             ge_slot.item.set_score_invalid()
     # click price button
 
-    ge_slot.enter_price(str(ge_slot.item.price_instant_bought_at))
-    ge_slot.confirm_offer()
+    ge_slot.runescape_instance.enter_price(str(ge_slot.item.price_instant_bought_at))
+    ge_slot.runescape_instance.confirm_offer()
 
     # update state of ge slot
     ge_slot.update_buy_or_sell_state('sell')

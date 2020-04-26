@@ -4,3 +4,5 @@
 .gitignore
 *.txt
 items_to_merch_module.py
+transaction_record.csv
+.screenshot*.png
