@@ -1,4 +1,5 @@
 import datetime
+import operator
 import random
 
 import pyautogui
@@ -11,8 +12,8 @@ from Custom_Modules import gelimitfinder
 from item import Item
 from Custom_Modules import pointfrombox
 from Custom_Modules.realmouse import move_mouse_to
-from utilities.utils import calc_break, tesser_money_image, tesser_price_image, screengrab_as_numpy_array, \
-    move_mouse_to_image_within_region, random_typer, wait_for, check_price
+from utilities.utils import calc_break, screengrab_as_numpy_array, \
+    move_mouse_to_image_within_region, random_typer, wait_for, check_price, check_quantity, calc_score
 
 
 class RunescapeWindow:
@@ -26,17 +27,14 @@ class RunescapeWindow:
                          (self.bottom_right_corner[0] - 179, self.bottom_right_corner[1] - 28)
 
         self.list_of_ge_slots = initialise_ge_slots(self.top_left_corner, self.bottom_right_corner, self)
-        # TODO: Fix the money detection
-        # self.money = detect_money(self.top_left_corner, self.bottom_right_corner) TESSER NEEDS FIXING
         self.money = 100_000
         self.profit = 0
         self.time_of_last_break = datetime.datetime.now()
         self.items_to_merch = items_to_merch(self.member_status, self)
-        self.number_of_empty_ge_slots = empty_ge_slot_check(self.list_of_ge_slots)
         self.items_in_use = [ge_slot.item for ge_slot in self.list_of_ge_slots]
 
         print('Initialised a window with {}Kgp and {} ge slots'.format(int(self.money / 1000),
-                                                                       self.number_of_empty_ge_slots))
+                                                                       len(self.empty_ge_slots())))
 
         self.loc_inventory_item = (self.bottom_right_corner[0] + 64, self.bottom_right_corner[1] - 107), \
                                   (self.bottom_right_corner[0] + 88, self.bottom_right_corner[1] - 84)
@@ -46,14 +44,21 @@ class RunescapeWindow:
                                        (self.bottom_right_corner[0] - 20, self.bottom_right_corner[1] - 21)
         self.GEMerch = parent_script
 
+    def empty_ge_slots(self):
+        return [ge_slot for ge_slot in self.list_of_ge_slots if ge_slot.item is None]
+
+    def empty_ge_slot(self):
+        assert self.empty_ge_slots()
+        return self.empty_ge_slots().pop(0)
+
+    def transaction_record(self):
+        return self.GEMerch.transaction_record
+
     def update_profit(self, amount):
         self.profit = self.profit + amount
 
-    def check_for_empty_ge_slots(self):
-        self.number_of_empty_ge_slots = empty_ge_slot_check(self.list_of_ge_slots)
-
     def update_money(self, amount):
-        self.money = amount
+        self.money += amount
 
     @calc_break
     def select_inventory_item(self):
@@ -61,6 +66,7 @@ class RunescapeWindow:
         move_mouse_to(item_location[0], item_location[1])
         pyautogui.click()
 
+    @property
     def items_available(self):
         return [item for item in self.items_to_merch if
                 item.qty_available_to_buy() <= item.limit
@@ -68,6 +74,10 @@ class RunescapeWindow:
                 item.current_state is None
                 and
                 (item.meets_profit_threshold() or item.price_is_outdated())]
+
+    @property
+    def best_item_available(self):
+        return max(self.items_available, key=operator.methodcaller('score'))
 
     @calc_break
     def enter_price(self, price):
@@ -109,9 +119,8 @@ class RunescapeWindow:
 
     @calc_break
     def open_ge_slot(self, ge_slot):
-        move_mouse_to(*ge_slot.location())
+        move_mouse_to(*ge_slot.location)
         pyautogui.click()
-        wait_for(gui.completed_offer, self)
 
     @calc_break
     def select_buy_bag(self, ge_slot):
@@ -121,6 +130,11 @@ class RunescapeWindow:
     @calc_break
     def select_sell_bag(self, ge_slot):
         move_mouse_to_image_within_region(gui.sell_bag, ge_slot.region)
+        pyautogui.click()
+
+    @calc_break
+    def select_abort_offer(self, ge_slot):
+        move_mouse_to_image_within_region(gui.abort_offer, region=ge_slot.region)
         pyautogui.click()
 
     def collect_items_and_return_price(self, ge_slot):
@@ -133,20 +147,59 @@ class RunescapeWindow:
         self.collect_1()
         wait_for(gui.view_all_offers, self)
 
-        return price
+        return int(price)
+
+    def collect_items(self):
+        if item_in_slot(self.region):
+            self.collect_2()
+
+        self.collect_1()
+        wait_for(gui.view_all_offers, self)
+
+    def cancel_offer(self, ge_slot):
+        self.open_ge_slot(ge_slot)
+        self.select_abort_offer(ge_slot)
+        wait_for(gui.offer_canceled, ge_slot.runescape_instance)
+        quantity = check_quantity(self.loc_price) # You bought/sold a qty X
+        price_per_item = check_price(self.loc_price) # For a total price of Y
+        total_price = quantity * price_per_item
+        self.GEMerch.add_transaction(item=ge_slot.item, action=ge_slot.item.current_state, qty=quantity,
+                                     price=price_per_item)
+        # If this is a buy offer, how much $ did I put into the slot originally?
+        # then money += original_offer_amt - (qty_bought * price_per_item)
+        # new_qty_to_sell = qty_bought
+        # sell items at current sell price or check new buy price
+        if ge_slot.item.current_state == 'buy':
+            ge_slot.item.qty_in_inventory = quantity
+            ge_slot.runescape_instance.money += ge_slot.item.money_in_process - total_price
+            ge_slot.item.money_in_process = 0
+            ge_slot.item.reset_item_and_slot()
+            if quantity > 0:
+                ge_slot.item.sell_items(price=ge_slot.item.buy_price)
+        # If this is a sell offer, how many items did I originally try to sell?
+        # new_qty_to_sell = original_qty_to_sell (quantity in process - quantity
+        # then money += price_per_item * qty
+        # sell items at original buy price to just unload or check new buy price
+        if ge_slot.item.current_state == 'sell':
+            ge_slot.runescape_instance.money += quantity * price_per_item
+            ge_slot.item.money_in_process = 0
+            ge_slot.item.qty_in_inventory += ge_slot.item.qty_in_process - quantity
+            ge_slot.item.sell_items(price=ge_slot.item.buy_price)
+
+        self.collect_items()
+
+        ge_slot.item.reset_item_and_slot()
+
+    def cancel_sell_offer(self, ge_slot):
+        self.open_ge_slot(ge_slot)
+        self.select_abort_offer(ge_slot)
+        wait_for(gui.offer_canceled, ge_slot.runescape_instance)
 
 
 def item_in_slot(slot_region):
-    # TODO: Need to verify the region is correct
     if pyautogui.locateOnScreen(gui.empty_collect_slot, region=slot_region) is None:
         return True
     return False
-
-
-@calc_break
-def prevent_logout(top_left_corner, bottom_right_corner, runescape_window):
-    # TODO: Rewrite this to simple right click at a random point.
-    pass
 
 
 def items_to_merch(member_status, runescape_instance):
@@ -183,30 +236,11 @@ def count_ge_slots(top_left_corner, bottom_right_corner):
     return list_of_ge_slots
 
 
-def empty_ge_slot_check(list_of_ge_slots):
-    number_of_ge_slots_open = 0
-    for slot in list_of_ge_slots:
-        if slot.buy_or_sell is None:
-            number_of_ge_slots_open += 1
-    return number_of_ge_slots_open
-
-
 def initialise_ge_slots(top_left_corner, bottom_right_corner, runescape_window):
     ge_slots = []
     for found_slot_region in count_ge_slots(top_left_corner, bottom_right_corner):
         ge_slots.append(GESlot(region=found_slot_region, runescape_instance=runescape_window))
     return ge_slots
 
-
-def detect_money(top_left_corner, bottom_right_corner):
-    # TODO: Update this screenshot. Function currently unused.
-    money_icon_path = 'Tools/screenshots/money_icon.png'
-    money_icon_loc = pyautogui.locateOnScreen(money_icon_path, region=(
-        top_left_corner[0], top_left_corner[1], bottom_right_corner[0] - top_left_corner[0],
-        bottom_right_corner[1] - top_left_corner[1]))
-    money_val_loc = (money_icon_loc[0] + 22, money_icon_loc[1], money_icon_loc[0] + 100, money_icon_loc[1] + 18)
-    image = screengrab_as_numpy_array(money_val_loc)
-    money_val = tesser_money_image(image)
-    return money_val
 
 

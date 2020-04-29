@@ -7,7 +7,7 @@ import pytesseract
 import re
 import pyautogui
 import PIL
-import matplotlib as plt
+
 
 from Custom_Modules.realmouse import move_mouse_to
 
@@ -15,100 +15,9 @@ from Custom_Modules.realmouse import move_mouse_to
 def get_image_of_region(region):
     return np.array(pyautogui.screenshot(region=region))
 
+
 def calc_score(qty, price, time_order_placed):
     return (qty * price) / (datetime.datetime.now() - time_order_placed).seconds
-
-
-# TODO: This can probably be refined to make it static or a class method
-def record_transaction(ge_slot, qty, price, action, score=np.nan):
-    if action in ['Sell']:
-        score = calc_score(qty=qty, price=price, time_order_placed=ge_slot.item.time_buy_order_placed)
-    ge_slot.runescape_instance.GEMerch.add_transaction(
-        item=ge_slot.item, action=action, qty=qty, price=price, score=score)
-
-
-def tesser_money_image(image):
-    # image = cv2.resize(image, (0,0), fx=2, fy=2)
-    image = PIL.Image.fromarray(image)
-    txt = pytesseract.image_to_string(image, config='-psm 7')
-    txt_list = list(txt)
-    for i in range(len(txt_list)):
-        if txt_list[i] == 'o':
-            txt_list[i] = '0'
-        elif txt_list[i] == 'O':
-            txt_list[i] = '0'
-        elif txt_list[i] == 'l':
-            txt_list[i] = '1'
-        elif txt_list[i] == 'I':
-            txt_list[i] = '1'
-        elif txt_list[i] == 'i':
-            txt_list[i] = '1'
-        elif txt_list[i] == 'M':
-            txt_list[i] = '000000'
-        elif txt_list[i] == 'K':
-            txt_list[i] = '000'
-        elif txt_list[i] == 'm':
-            txt_list[i] = '000000'
-        elif txt_list[i] == 'k':
-            txt_list[i] = '000'
-        elif txt_list[i] == 's':
-            txt_list[i] = '5'
-        elif txt_list[i] == 'S':
-            txt_list[i] = '5'
-        elif txt_list[i] == 'W':
-            txt_list[i] = '40'
-    txt = int(''.join(txt_list))
-    return (txt)
-
-
-# Merch related function
-def tesser_quantity_image(image):
-    image = cv2.resize(image, (0, 0), fx=2, fy=2)
-    image = PIL.Image.fromarray(image)
-    txt = pytesseract.image_to_string(image, config='-psm 7')
-    txt = txt.replace(",", "")
-    txt = txt.replace(" ", "")
-    txt = txt.replace(".", "")
-    if len(txt) == 0:
-        txt = pytesseract.image_to_string(image, config='-psm 10')
-    try:
-        txt = int(txt)
-    except:
-        txt_list = list(txt)
-        for i in range(len(txt_list)):
-            if txt_list[i] == 'B':
-                txt_list[i] = '8'
-            elif txt_list[i] == 'l':
-                txt_list[i] = '1'
-            elif txt_list[i] == 'L':
-                txt_list[i] = '1'
-            elif txt_list[i] == 'i':
-                txt_list[i] = '1'
-            elif txt_list[i] == 'I':
-                txt_list[i] = '1'
-            elif txt_list[i] == 'o':
-                txt_list[i] = '0'
-            elif txt_list[i] == 'O':
-                txt_list[i] = '0'
-            elif txt_list[i] == 'z':
-                txt_list[i] = '2'
-            elif txt_list[i] == 'Z':
-                txt_list[i] = '2'
-            elif txt_list[i] == 'Q':
-                txt_list[i] = '0'
-            elif txt_list[i] == 's':
-                txt_list[i] = '5'
-            elif txt_list[i] == 'S':
-                txt_list[i] = '5'
-            elif txt_list[i] == '.':
-                txt_list[i] = '9'
-            elif txt_list[i] == ':':
-                txt_list[i] = '8'
-        if len(txt_list) > 1:
-            txt = int(''.join(txt_list))
-        else:
-            txt = int(txt_list[0])
-    return (txt)
 
 
 def box_to_region(top_left_corner, bottom_right_corner):
@@ -132,11 +41,23 @@ def check_price(location):
     :return: int
     """
     numpy_array = screengrab_as_numpy_array(location)
-    price = tesser_price_image(numpy_array)
-    return price
+    quantity, cost = tesser_price_image(numpy_array)
+    return int(quantity) / int(cost)
+
+
+def check_quantity(location):
+    """
+    A function that reads a price from the screen via Tesseract OCR
+    :param location: X, Y coords of the upper right and lower left hand corners of the area to be read
+    :return: int
+    """
+    numpy_array = screengrab_as_numpy_array(location)
+    quantity, cost = tesser_price_image(numpy_array)
+    return quantity
 
 
 def tesser_price_image(image):
+    # TODO: Refactor this to return both the quantity and price of the item.
     # Enlarge image for easier processing
     image = cv2.resize(src=image, dsize=None, fx=5, fy=5)
     # Convert image to grayscale
@@ -145,19 +66,13 @@ def tesser_price_image(image):
     retval, image = cv2.threshold(image, 100, 255, cv2.THRESH_BINARY)
     # Invert image so text is black on white
     image = 255 - image
-    # Show image
-    # plt.imshow(image, cmap='gray')
-    # Convert image to string
+
     # TODO: This needs to be improved. Has trouble with 4, vs 9 and 6
     txt = pytesseract.image_to_string(image, lang='eng', config='--psm 6')
     txt = txt.replace(",", "")
     txt = re.findall(r'\d+', txt)
-    try:
-        txt = int(txt[1]) / int(txt[0])
-    except:
-        print('Problem with tesser_price_image ocr occured. Price could not be found')
-
-    return int(txt)
+    quantity, cost = txt[1], txt[0]
+    return quantity, cost
 
 
 def screengrab_as_numpy_array(location):
@@ -209,14 +124,11 @@ def random_typer(word):
         pyautogui.typewrite(letter.lower(), interval=random.random() / 4)
 
 
-# module to return a random point from a box
-# This should be a circle with points being weighted from center
 def random_point(top_left, bottom_right):
     x = random.randint(top_left[0], bottom_right[0])
     y = random.randint(top_left[1], bottom_right[1])
 
     return x, y
-
 
 # Locates an image on screen and moves the mouse to a random point within that image
 def move_mouse_to_image_within_region(image, region=None):
