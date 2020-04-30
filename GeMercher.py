@@ -11,7 +11,7 @@ import numpy as np
 
 from RunescapeWindow import RunescapeWindow
 from utilities.utils import wait_for, move_mouse_to_image_within_region, random_typer, screengrab_as_numpy_array, \
-    tesser_quantity_image, check_quantity, calc_score
+     check_quantity, calc_score
 
 
 def load_previous_items():
@@ -66,6 +66,7 @@ def main():
 
     while True:
         print('Loop started')
+        merchant.score_items = True
         merchant.clear_completed_offers()
 
         if not merchant.score_items:
@@ -198,7 +199,7 @@ class Merchant:
         # IF I have a pickled file I should verify whether its good or not
         empty_slots = []
         for instance in sorted(self.runescape_windows, key=operator.attrgetter('money')):
-            for ge_slot in instance.empty_ge_slots:
+            for ge_slot in instance.empty_ge_slots():
                 empty_slots.append(ge_slot)
 
         if not empty_slots:
@@ -212,9 +213,6 @@ class Merchant:
         top_item = empty_slot.runescape_instance.best_item_available
 
         print(f'Top scored item is {top_item.item_name}')
-        # I have picked a scored item, now I need to reference the instance of that item in the Runescape Window
-        empty_slot.set_item_in_ge_slot(top_item)
-
         # Find the current sell price for the item chosen
         wait_for(gui.buy_bag, empty_slot)
         if top_item.price_is_outdated():

@@ -1,6 +1,7 @@
 import datetime
 import operator
 import random
+from collections import deque
 
 import pyautogui
 import screenshots as gui
@@ -45,11 +46,11 @@ class RunescapeWindow:
         self.GEMerch = parent_script
 
     def empty_ge_slots(self):
-        return [ge_slot for ge_slot in self.list_of_ge_slots if ge_slot.item is None]
+        return deque([ge_slot for ge_slot in self.list_of_ge_slots if ge_slot.item is None])
 
     def empty_ge_slot(self):
         assert self.empty_ge_slots()
-        return self.empty_ge_slots().pop(0)
+        return self.empty_ge_slots().popleft()
 
     def transaction_record(self):
         return self.GEMerch.transaction_record

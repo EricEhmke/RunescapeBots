@@ -31,6 +31,8 @@ class GESlot:
 
     @property
     def offer_is_aged(self):
+        if self.time_of_last_screenshot is None:
+            return False
         return datetime.datetime.now() - self.time_of_last_screenshot > self.runescape_instance.GEMerch.max_offer_age_seconds
 
     @property

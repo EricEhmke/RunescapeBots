@@ -41,8 +41,8 @@ def check_price(location):
     :return: int
     """
     numpy_array = screengrab_as_numpy_array(location)
-    quantity, cost = tesser_price_image(numpy_array)
-    return int(quantity) / int(cost)
+    cost, quantity = tesser_price_image(numpy_array)
+    return int(cost)/int(quantity)
 
 
 def check_quantity(location):
@@ -190,4 +190,4 @@ def members_status_check(top_left_corner, bottom_right_corner):
 
 
 def percent_of(buy_price, sell_price):
-    return 1 - (buy_price / sell_price)
+    return round(1 - (buy_price / sell_price), 2)

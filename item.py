@@ -31,7 +31,7 @@ class Item:
     @property
     def optimal_max_quantity(self):
         limit = self.limit
-        optimal_max = (self.runescape_instance.money / self.buy_price) / len(self.runescape_instance.empty_ge_slots)
+        optimal_max = (self.runescape_instance.money / self.buy_price) / len(self.runescape_instance.empty_ge_slots())
         return int(min(limit, optimal_max))
 
     @property
@@ -70,10 +70,10 @@ class Item:
         self.time_of_last_pc = datetime.datetime.now()
 
     def set_price_instant_bought_at(self, price):
-        self.sell_price = price
+        self.buy_price = price
 
     def set_price_instant_sold_at(self, price):
-        self.buy_price = price
+        self.sell_price = price
 
     def set_quantity_to_buy(self, number):
         self.quantity_to_buy = number
@@ -96,14 +96,15 @@ class Item:
         return self.limit - num_items_on_cooldown
 
     def return_on_investment(self):
-        return percent_of(buy_price=self.sell_price,
-                          sell_price=self.buy_price)
+        return percent_of(buy_price=self.buy_price, sell_price=self.sell_price)
 
     def meets_profit_threshold(self):
-        if self.sell_price or self.buy_price is None:
+        if self.sell_price is None or self.buy_price is None:
             return True
-
-        return (self.return_on_investment() > 0.025) and (self.sell_price - self.buy_price > 3)
+        print(f'Return on investment is: {self.return_on_investment()}')
+        margin = self.sell_price - self.buy_price
+        print(f'Margin is: {margin}')
+        return (self.return_on_investment() > 0.02) and (margin > 3)
 
     def find_current_buy_price(self):
         self.ge_slot = self.runescape_instance.empty_ge_slot()
@@ -151,6 +152,7 @@ class Item:
     def buy_item(self, price, quantity):
         assert price * quantity < self.runescape_instance.money
         self.ge_slot = self.runescape_instance.empty_ge_slot()
+        self.ge_slot.item = self
 
         self.runescape_instance.select_buy_bag(self.ge_slot)
         wait_for(gui.buy_prompt, self.runescape_instance)
